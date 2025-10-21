@@ -61,8 +61,13 @@ class EnergyBalanceAT:
         return df_eb
 
     def create_multiindex_structure(self) -> None:
-        """Build multi-index from the 'index' column, capture +/- markers, showing input/output flows"""
-        df_eb = self.df_eb.copy()
+        """Build a multi-index from layer columns and compute row depth.
+
+        Scans layer_0/1/2 for +/- markers, records them in a '+/-' column,
+        replaces marker values with NaN, forward-fills hierarchical labels,
+        sets a MultiIndex (layer_0, layer_1, layer_2) and adds a 'depth' column
+        indicating the hierarchy level (0..n). Updates self.df_eb in-place.
+        """
         try:
             df = self.df_eb.copy()
             df["+/-"] = None
@@ -109,7 +114,18 @@ class EnergyBalanceAT:
             self.df_eb = df
 
     def map_variable_names(self) -> None:
-        """Map variables to AT-Energy-Balance-specific variable names created from Sheets naming."""
+        """
+        Map variables to AT-Energy-Balance-specific variable names created from Sheets naming.
+
+        This method takes the multi-index structure of the AEB-Sheet and
+        maps the hierarchical variable names tospecific variable names
+        created from that AEB-Sheet.
+
+        It creates a new column "var_name" by concatenating the hierarchical labels
+        of the multilayer index with ">" and sets the index to "var_name" and drops the column.
+
+        The method updates the instance variables self.df_variables and self.df_eb in-place.
+        """
         if "+/-" not in self.df_eb.columns:
             print("Need multiindex structure. Creating it first...")
             self.create_multiindex_structure()
@@ -118,7 +134,7 @@ class EnergyBalanceAT:
         ].copy()
         layer_0 = df_var_names["layer_0"].copy()
         layer_1 = df_var_names["layer_1"].copy()
-        # forward fill layer_0 where layer_0 is NaN or in ["+", "-", "="
+        # forward fill layer_0 where layer_0 is NaN or in ["+", "-", "="]
         last_valid_value_0 = layer_0.values[0]
         valid_value_1 = layer_1.values[0]
         for i0, i1 in zip(range(0, len(layer_0.values)), range(0, len(layer_1.values))):
