@@ -170,3 +170,19 @@ class EnergyBalanceAT:
             "var_name", drop=True
         )
         self.df_variables = df_variables
+        self.df_eb["var_name"] = df_var_names["var_name"]
+
+    def select(self, search_string: str, only_return_index=False) -> pd.DataFrame:
+        """Search for given string of any hierachical layer in multiindex and returns matching rows as pandas DataFrame. Returns ValueError if no matches found."""
+        found = []
+        for tuples in self.df_eb.index:
+            for strings in tuples:
+                if strings == search_string:
+                    found.append(tuples)
+        if found:
+            return self.df_eb.T[found].T
+        else:
+            msg = "No matches found for string '{search_string}'".format(
+                search_string=search_string
+            )
+            raise ValueError(msg)
