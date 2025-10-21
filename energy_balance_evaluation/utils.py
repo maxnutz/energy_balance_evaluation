@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+
+import pandas as pd
+import numpy as np
+
+
 class EnergyBalanceAT:
     """
     AT energy balance reader and mapper
@@ -59,48 +64,49 @@ class EnergyBalanceAT:
         """Build multi-index from the 'index' column, capture +/- markers, showing input/output flows"""
         df_eb = self.df_eb.copy()
         try:
-            df_eb["+/-"] = None
-            df_eb["+/-"].astype("str")
+            df = self.df_eb.copy()
+            df["+/-"] = None
+            df["+/-"].astype("str")
 
-            for index, row in df_eb.iterrows():
+            for index, row in df.iterrows():
                 if (
                     row["layer_0"] == "+"
                     or row["layer_0"] == "-"
                     or row["layer_0"] == "="
                 ):
-                    df_eb.at[index, "+/-"] = df_eb.at[index, "layer_0"]
+                    df.at[index, "+/-"] = df.at[index, "layer_0"]
                 if (
                     row["layer_1"] == "+"
                     or row["layer_1"] == "-"
                     or row["layer_1"] == "="
                 ):
-                    df_eb.at[index, "+/-"] = df_eb.at[index, "layer_1"]
+                    df.at[index, "+/-"] = df.at[index, "layer_1"]
                 if (
                     row["layer_2"] == "+"
                     or row["layer_2"] == "-"
                     or row["layer_2"] == "="
                 ):
-                    df_eb.at[index, "+/-"] = df_eb.at[index, "layer_2"]
+                    df.at[index, "+/-"] = df.at[index, "layer_2"]
+            layers = [col for col in df.columns if col.startswith("layer_")]
+            df[layers] = df[layers].replace(["+", "-", "=", "NaN", "nan"], np.nan)
+            df = df.replace("Z", np.nan)
 
-            df_eb.replace("TI_NRG_FC_IND_NE", "TI_NRG-FC-IND_NE")
-            var_multiindex = df_eb["index"].str.split("_", expand=True)
+            last_valid_value_1 = df["layer_1"].values[0]
+            for index, row in df.iterrows():
+                if pd.isna(row["layer_0"]) and pd.isna(row["layer_1"]):
+                    df.at[index, "layer_1"] = last_valid_value_1
+                if not pd.isna(row["layer_1"]):
+                    last_valid_value_1 = row["layer_1"]
+            df["layer_0"] = df["layer_0"].ffill()
+            df.set_index(["layer_0", "layer_1", "layer_2"], inplace=True, drop=False)
 
-            df_eb["index0"] = var_multiindex[0]
-            df_eb["index1"] = var_multiindex[1]
-            df_eb["index2"] = var_multiindex[2]
-            df_eb["index3"] = var_multiindex[3]
-            df_eb_indexed = df_eb.set_index(
-                ["index0", "index1", "index2", "index3"], inplace=False
-            )
-
-            df_eb_indexed["depth"] = np.nan
-            df_eb_indexed["depth"] = [
-                (sum(pd.notna(x) for x in idx) - 1) for idx in df_eb_indexed.index
-            ]
+            df["depth"] = np.nan
+            df["depth"] = [(sum(pd.notna(x) for x in idx) - 1) for idx in df.index]
         except Exception as e:
             print(f"An error occurred while creating the multiindex structure: {e}")
+            raise Exception(e)
         else:
-            self.df_eb = df_eb_indexed
+            self.df_eb = df
 
     def map_variable_names(self) -> None:
         """Map variables to AT-Energy-Balance-specific variable names created from Sheets naming."""
@@ -139,13 +145,13 @@ class EnergyBalanceAT:
                     "-",
                     "=",
                 ]:
-                    var_name += "_" + row["layer_1"]
+                    var_name += ">" + row["layer_1"]
                     if not pd.isna(row["layer_2"]) and row["layer_2"] not in [
                         "+",
                         "-",
                         "=",
                     ]:
-                        var_name += "_" + row["layer_2"]
+                        var_name += ">" + row["layer_2"]
             elif not pd.isna(row["layer_1"]) and row["layer_1"] not in ["+", "-", "="]:
                 var_name = row["layer_1"]
                 if not pd.isna(row["layer_2"]) and row["layer_2"] not in [
@@ -153,7 +159,7 @@ class EnergyBalanceAT:
                     "-",
                     "=",
                 ]:
-                    var_name += "_" + row["layer_2"]
+                    var_name += ">" + row["layer_2"]
             elif not pd.isna(row["layer_2"]) and row["layer_2"] not in ["+", "-", "="]:
                 var_name = row["layer_2"]
             else:
