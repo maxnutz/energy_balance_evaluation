@@ -29,11 +29,21 @@ class EnergyBalanceAT:
         year,
         path_to_xlsb="EnergyBalances/BalancesApril2025/AT-Energy-balance-sheets-April2025-edition.xlsb",
         country="AT",
+        input_matrix: pd.DataFrame | None = None,
+        original_input: bool = True,
     ):
-        self.sheet_name = year
-        self.path_to_xlsb = path_to_xlsb
-        self.country = country
-        self.df_eb = self.import_excel()
+        self.original_input = original_input
+        if input_matrix is not None:
+            self.df_eb = input_matrix
+            self.create_multiindex_structure()
+            self.map_variable_names()
+        else:
+            self.sheet_name = year
+            self.path_to_xlsb = path_to_xlsb
+            self.country = country
+            self.df_eb = self.import_excel()
+            self.create_multiindex_structure()
+            self.map_variable_names()
 
     def import_excel(self) -> pd.DataFrame:
         """Imports the energy balance excel sheet and does some initial cleaning."""
@@ -57,7 +67,8 @@ class EnergyBalanceAT:
         )
         df_eb.loc[0, "index"] = "energycarrier"
         df_eb.loc[1, "layer_0"] = "Total absolute values"
-        df_eb.dropna(axis="columns", how="all", inplace=True)
+        if self.original_input:
+            df_eb.dropna(axis="columns", how="all", inplace=True)
         return df_eb
 
     def create_multiindex_structure(self) -> None:
@@ -188,17 +199,53 @@ class EnergyBalanceAT:
         self.df_variables = df_variables
         self.df_eb["var_name"] = df_var_names["var_name"]
 
-    def select(self, search_string: str, only_return_index=False) -> pd.DataFrame:
-        """Search for given string of any hierachical layer in multiindex and returns matching rows as pandas DataFrame. Returns ValueError if no matches found."""
+    def select(
+        self,
+        search_string: str | None = None,
+        depth: int | None = None,
+        only_return_index: bool = False,
+        drop_multilayer: bool = False,
+    ) -> pd.DataFrame:
+        """
+        Search for given string of any hierachical layer in multiindex
+        ---
+        Arguments:
+        - search_string: string to search for (str, default: None)
+        - depth: depth level to filter by (int, default: None)
+        - only_return_index: only return index values (bool, default: False)
+        - drop_multilayer: drop multi-layer structure and return flat DataFrame (bool, default: False)
+        **Ether search_string or depth must be provided.**
+        ---
+        Returns:
+        - matching rows as pandas DataFrame.
+        - ValueError if no matches found.
+        """
         found = []
-        for tuples in self.df_eb.index:
-            for strings in tuples:
-                if strings == search_string:
-                    found.append(tuples)
-        if found:
-            return self.df_eb.T[found].T
+        if search_string is None and depth is None:
+            raise ValueError("Either search_string or depth must be provided.")
+        if search_string != None:
+            for tuples in self.df_eb.index:
+                for strings in tuples:
+                    if strings == search_string:
+                        found.append(tuples)
+            if found:
+                df = self.df_eb.T[found].T
+            else:
+                msg = "No matches found for string '{search_string}'".format(
+                    search_string=search_string
+                )
+                raise ValueError(msg)
         else:
-            msg = "No matches found for string '{search_string}'".format(
-                search_string=search_string
+            df = self.df_eb.copy()
+        if depth != None:
+            df = df[df["depth"] == depth]
+
+        if only_return_index:
+            if drop_multilayer:
+                return df.var_name.values
+            return df.index.values
+        if drop_multilayer:
+            return df.set_index("var_name").drop(
+                columns=["layer_0", "layer_1", "layer_2"]
             )
             raise ValueError(msg)
