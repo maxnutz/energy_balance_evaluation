@@ -2,6 +2,10 @@
 
 import pandas as pd
 import numpy as np
+import os
+from PIL import UnidentifiedImageError
+
+import pypsa
 
 
 class EnergyBalanceAT:
@@ -248,4 +252,475 @@ class EnergyBalanceAT:
             return df.set_index("var_name").drop(
                 columns=["layer_0", "layer_1", "layer_2"]
             )
-            raise ValueError(msg)
+        return df
+
+
+class CarriersNetwork:
+    def __init__(
+        self,
+        carrier: str,
+        n: pypsa.Network,
+        eval_one_node: bool = False,
+        search_therm: bool | str = None,
+    ):
+        """
+        Initialises the CarriersNetwork class.
+        ---
+        Parameters
+        carrier : str
+            The name of the carrier for which the network should be evaluated.
+        eval_one_node : bool, optional
+            Whether to reduce the network to one node. Defaults to False.
+        search_therm : bool | str, optional
+            The search term to be used when reducing the network to one node. Defaults to None.
+        n : pypsa.Network, optional
+            The network object to be evaluated. Defaults to n.
+        ---
+        Attributes
+        carrier : str
+            The name of the carrier for which the network should be evaluated.
+        n : pypsa.Network
+            The network object to be evaluated.
+        generators : pandas.DataFrame
+            A DataFrame containing the generators of the carrier.
+        buses : pandas.DataFrame
+            A DataFrame containing the buses of the carrier.
+        links : pandas.DataFrame
+            A DataFrame containing the links of the carrier.
+        lines : pandas.DataFrame
+            A DataFrame containing the lines of the carrier.
+        stores : pandas.DataFrame
+            A DataFrame containing the stores of the carrier.
+        storage_units : pandas.DataFrame
+            A DataFrame containing the storage units of the carrier.
+        loads : pandas.DataFrame
+            A DataFrame containing the loads of the carrier.
+        processes : pandas.DataFrame
+            A DataFrame containing the processes of the carrier.
+        """
+        self.carrier = carrier
+        self.n = n
+        self.generators = self.get_generators()
+        self.buses = self.get_buses()
+        self.links = self.get_links()
+        self.lines = self.get_lines()
+        self.stores = self.get_stores()
+        self.storage_units = self.get_storage_units()
+        self.loads = self.get_load()
+        if self.buses.empty:
+            raise Exception("No buses found for carrier " + self.carrier)
+        else:
+            self.processes = self.get_all_processes()
+            if eval_one_node:
+                self.reduce_to_one_node(search_therm)
+
+    def reduce_to_one_node(self, search_therm):
+        """
+        Reduces the network of the current carrier to one node of the original network.
+        ---
+        Input:
+        - search_therm: name of the node to search for (eg. AT0)
+        to find buses, the carrier name is added to the given search string
+        ---
+        Output:
+        - overwrites the attributes of the class reduced to one network node
+        """
+        self.get_search_therms(search_therm)
+        # generators
+        self.generators = self.generators[
+            self.generators.bus.str.contains(self.search_node)
+        ]
+        # buses
+        self.buses = self.buses[self.buses.index.str.contains(self.search_node)]
+        # links
+        self.links = pd.concat(
+            [
+                self.links[self.links.bus0.str.contains(self.search_string)],
+                self.links[self.links.bus1.str.contains(self.search_string)],
+                self.links[self.links.bus2.str.contains(self.search_string)],
+            ]
+        )
+        # lines
+        self.lines = pd.concat(
+            [
+                self.lines[self.lines.bus0.str.contains(self.search_string)],
+                self.lines[self.lines.bus1.str.contains(self.search_string)],
+            ]
+        )
+        # stores
+        self.stores = self.stores[self.stores.bus.str.contains(self.search_node)]
+        # storage units
+        self.storage_units = self.storage_units[
+            self.storage_units.bus.str.contains(self.search_node)
+        ]
+        # loads
+        self.loads = self.loads[self.loads.bus.str.contains(self.search_node)]
+        self.processes = self.get_all_processes()
+
+    def get_search_therms(self, search_therm):
+        """
+        Creates the search strings to find all components
+        - of the current carrier and the reduced network node.
+        - takes first node of the network, if no string is given
+        ---
+        Output:
+        - writes class parameters search_string and search_node
+        - no return
+        """
+        if search_therm:
+            self.search_node = search_therm
+            self.search_node = search_therm + " " + self.carrier
+        else:
+            self.search_node = self.buses.index.unique()[0].replace(
+                " " + self.carrier, ""
+            )
+            self.search_string = self.buses.index.unique()[0]
+
+    def get_generators(self):
+        return self.n.generators[self.n.generators.carrier.str.contains(self.carrier)]
+
+    def get_buses(self):
+        """
+        Gets the buses of the classes carrier.
+        ---
+        Returns
+        pandas.DataFrame
+            A DataFrame containing the buses of the carrier.
+        Notes
+        If there are buses with no generator attached, a warning message is printed.
+        """
+        buses_carrier = self.n.buses[self.n.buses.carrier.str.contains(self.carrier)]
+        buses_with_no_generator = set(
+            self.n.generators[
+                self.n.generators.carrier.str.contains(self.carrier)
+            ].bus.values
+        ) - set(buses_carrier.index.values)
+        if (
+            buses_with_no_generator and buses_carrier.empty
+        ):  # TODO: include more buses with query for generators?
+            print(
+                "There are generators with carrier "
+                + self.carrier
+                + " attached to a bus with different carrier. Adapt buses query to 'self.n.buses[self.n.buses.generator.str.contains(self.carrier)'"
+            )
+            buses_carrier = self.n.buses[
+                self.n.buses.generator.str.contains(self.carrier)
+            ]
+        return buses_carrier
+
+    def get_links(self):
+        """
+        Gets the links of the classes carriers busses and corresponding ones.
+        ---
+        Returns
+        pandas.DataFrame
+            A DataFrame containing the links of the carrier.
+        """
+        return pd.concat(
+            [
+                self.n.links[self.n.links.bus0.isin(self.buses.index)],
+                self.n.links[self.n.links.bus1.isin(self.buses.index)],
+                self.n.links[self.n.links.bus2.isin(self.buses.index)],
+            ]
+        )
+
+    def get_lines(self):
+        """
+        Gets the lines of the classes carriers busses and corresponding ones.
+        ---
+        Returns
+        pandas.DataFrame
+            A DataFrame containing the lines of the carrier.
+        """
+        return pd.concat(
+            [
+                self.n.lines[self.n.lines.bus0.isin(self.buses.index)],
+                self.n.lines[self.n.lines.bus1.isin(self.buses.index)],
+            ]
+        )
+
+    def get_load(self):
+        """
+        Gets the loads of the classes carrier.
+        ---
+        Returns
+        pandas.DataFrame
+            A DataFrame containing the loads of the carrier.
+        Notes
+        If loads have divverent carriers as buses, they are attached to, a warning message is printed.
+        """
+        direct_load_of_carrier = self.n.loads[
+            self.n.loads.carrier.str.contains(self.carrier)
+        ]
+        if not direct_load_of_carrier.equals(
+            self.n.loads[self.n.loads.bus.isin(self.buses.index)]
+        ):
+            carriers = self.n.loads[
+                self.n.loads.bus.isin(self.buses.index)
+            ].carrier.unique()
+            print(
+                "Loads must have the same carrier as the bus they are attached to but for carrier '"
+                + self.carrier
+                + "' got different carriers of integrated buses:"
+            )
+            print("  " + ",".join(carriers))
+            print(
+                "  used query for data: self.n.loads[self.n.loads.bus.isin(self.buses.index)]"
+            )
+            return self.n.loads[self.n.loads.bus.isin(self.buses.index)]
+        return direct_load_of_carrier
+
+    def get_stores(self):
+        """
+        Gets the stores of the classes carrier attached to the carriers busses.
+        ---
+        Returns
+        pandas.DataFrame
+            A DataFrame containing the stores of the carrier.
+        Notes
+        If stores have divverent carriers as buses, they are attached to, a warning message is printed.
+        """
+        stores_carrier = self.n.stores[self.n.stores.carrier.str.contains(self.carrier)]
+        if not stores_carrier.equals(
+            self.n.stores[self.n.stores.bus.isin(self.buses.index)]
+        ):
+            raise Warning(
+                "Stores must have the same carrier as the bus they are attached to but got different dataframes."
+            )
+        return stores_carrier
+
+    def get_storage_units(self):
+        """
+        Gets the storage units of the classes carrier attached to the carriers busses.
+        ---
+        Returns
+        pandas.DataFrame
+            A DataFrame containing the storage units of the carrier.
+        Notes
+        unlikely, that it returns elements, as storage units are connected to their own busses
+        If storage units have divverent carriers as buses, they are attached to, a warning message is printed.
+        """
+        storage_units_carrier = self.n.storage_units[
+            self.n.storage_units.carrier.str.contains(self.carrier)
+        ]
+        if not storage_units_carrier.equals(
+            self.n.storage_units[self.n.storage_units.bus.isin(self.buses.index)]
+        ):
+            raise Warning(
+                "Storage units must have the same carrier as the bus they are attached to but got different dataframes."
+            )
+        return storage_units_carrier
+
+    def get_all_processes(self):
+        link_processes_of_carrier = self.links.carrier.unique()
+        line_processes_of_carrier = self.lines.carrier.unique()
+        return np.append(link_processes_of_carrier, line_processes_of_carrier)
+
+    def mermaid_carriers_network(self) -> list:
+        """
+        Creates network diagram in mermaid code for the classes sub-network
+        ---
+        Input:
+        - all class variables directly read from pypsa network are needed
+        ---
+        Output:
+        - mermaid code for network diagram as list of strings.
+        """
+        mermaid_code = []
+        # add all main buses
+        mermaid_code.append(
+            [
+                "BUS_" + val.replace(" ", "_") + "(((" + val + ")))"
+                for val in self.buses.index.values
+            ]
+        )
+
+        # add all generators
+        mermaid_code.append(
+            [
+                index.replace(" ", "_")
+                + "["
+                + index
+                + "] === "
+                + "BUS_"
+                + row.bus.replace(" ", "_")
+                for index, row in self.generators.iterrows()
+            ]
+        )
+
+        # add all loads
+        mermaid_code.append(
+            [
+                index.replace(" ", "_")
+                + "("
+                + index
+                + ") === "
+                + "BUS_"
+                + row.bus.replace(" ", "_")
+                for index, row in self.loads.iterrows()
+            ]
+        )
+
+        # add all storage_units
+        mermaid_code.append(
+            [
+                index.replace(" ", "_")
+                + "("
+                + index
+                + ") === "
+                + "BUS_"
+                + row.bus.replace(" ", "_")
+                for index, row in self.storage_units.iterrows()
+            ]
+        )
+
+        # add all links and all buses, links to go
+        list_of_buses = (
+            list(self.links.bus0.values)
+            + list(self.links.bus1.values)
+            + list(self.links.bus2.values)
+        )
+        cleaned_list_of_buses = [v for v in list_of_buses if v != ""]
+        mermaid_code.append(
+            [
+                "BUS_" + bus.replace(" ", "_") + "((" + bus + "))"
+                for bus in list(set(cleaned_list_of_buses))
+            ]
+        )
+        mermaid_code.append(
+            [
+                "BUS_"
+                + row.bus0.replace(" ", "_")
+                + "-- "
+                + index
+                + " -->BUS_"
+                + row.bus1.replace(" ", "_")
+                for index, row in self.links.iterrows()
+            ]
+        )
+        mermaid_code.append(
+            [
+                "BUS_"
+                + row.bus0.replace(" ", "_")
+                + "-- "
+                + index
+                + " indirect -->BUS_"
+                + row.bus2.replace(" ", "_")
+                for index, row in self.links.iterrows()
+                if row.bus2 != ""
+            ]
+        )
+
+        # add all lines and all buses, lines go to
+        mermaid_code.append(
+            [
+                "BUS_" + bus.replace(" ", "_") + "((" + bus + "))"
+                for bus in self.lines.bus1.unique()
+            ]
+        )
+        mermaid_code.append(
+            [
+                "BUS_"
+                + row.bus0.replace(" ", "_")
+                + "-- "
+                + index
+                + " -->BUS_"
+                + row.bus1.replace(" ", "_")
+                for index, row in self.lines.iterrows()
+            ]
+        )
+        return mermaid_code
+
+    def create_mermaid_output(
+        self, graph: str, folderpath: str, return_mermaid_code: bool = False
+    ):
+        """
+        Creates an image of the network diagram from the given mermaid code.
+        Input:
+        ---
+        graph : str
+            The mermaid code for the network diagram.
+        folderpath : str
+            The path to the folder where the image should be saved.
+        internet-connection needed
+        Returns
+        ---
+        file is saved as jpg with carriers name.
+        """
+        import base64
+        import io, requests
+        from IPython.display import Image, display
+        from PIL import Image as im
+        import matplotlib.pyplot as plt
+
+        if not os.path.exists(folderpath):
+            os.makedirs(folderpath)
+
+        if return_mermaid_code:
+            with open(folderpath + "/" + self.carrier + ".txt", "w") as f:
+                f.write(graph)
+
+        graphbytes = graph.encode("utf8")
+        base64_bytes = base64.urlsafe_b64encode(graphbytes)
+        base64_string = base64_bytes.decode("ascii")
+        try:
+            img = im.open(
+                io.BytesIO(
+                    requests.get("https://mermaid.ink/img/" + base64_string).content
+                )
+            )
+        except UnidentifiedImageError as e:
+            with open(folderpath + "/" + self.carrier + ".txt", "w") as f:
+                f.write(graph)
+            response = requests.get("https://mermaid.ink/img/" + base64_string)
+            if response.status_code == 414:
+                print(
+                    "Carrier "
+                    + self.carrier
+                    + ": The graph is too large to be visualized by URI. Save mermaid code to file instead"
+                )
+            else:
+                print(response.status_code)
+                print(response.text[:500])
+                raise Exception("mermaid URI-Error:", str(e))
+        else:
+            plt.imshow(img)
+            plt.axis("off")  # allow to hide axis
+            plt.savefig(folderpath + "/" + self.carrier + ".png", dpi=1200)
+
+    def plot_subnetwork(self, folderpath: str, return_mermaid_code=False):
+        """
+        Plots the sub-network of the classes carrier attached to the carriers busses.
+        Input:
+        ---
+        - folderpath: path to outputfolder
+        - return_mermaid_code: boolean - if True, saves mermaid code to textfile.
+        - needs internet connection to call create_mermaid_output
+        Output:
+        ---
+        - mermaid code for network diagram as list of strings is created
+        - an image of the network diagram from the given mermaid code is created
+        internet-connection needed
+        Returns
+        ---
+        file is saved as jpg with carriers name
+        """
+        mermaid_code_list = self.mermaid_carriers_network()
+        mermaid_code = "flowchart LR;\n  " + "\n  ".join(
+            [string for submermaid in mermaid_code_list for string in submermaid]
+        )
+        self.create_mermaid_output(
+            f"""{mermaid_code}""", folderpath, return_mermaid_code
+        )
+
+
+def main():
+    print("This will be a test of the module for energy balance evaluation.")
+    try:
+        cs = EnergyBalanceAT("2023")
+    except Exception as e:
+        print(f"An error occurred while creating the EnergyBalanceAT instance: {e}")
+
+
+if __name__ == "__main__":
+    main()
