@@ -368,8 +368,8 @@ class CarriersNetwork:
         - no return
         """
         if search_therm:
-            self.search_node = search_therm
             self.search_node = search_therm + " " + self.carrier
+            self.search_string = search_therm
         else:
             self.search_node = self.buses.index.unique()[0].replace(
                 " " + self.carrier, ""
