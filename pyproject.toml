@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "energy_balance_evaluation"
+version = "0.1.1"
+description = "A package to evaluate eurostat energy balance data for validation of pypsa-Networks"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    {name = "Max Nutz", email = "max.nutz@boku.ac.at"}
+]
+
+[project.urls]
+Homepage = "https://github.com/maxnutz/energy_balance_evaluation"
+
+[tool.setuptools.packages.find]
+include = ["energy_balance_evaluation"]
