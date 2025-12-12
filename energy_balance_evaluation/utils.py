@@ -7,6 +7,8 @@ from PIL import UnidentifiedImageError
 
 import pypsa
 
+from energy_balance_evaluation.statics import eb_row_string_replacement_dict
+
 
 class EnergyBalanceAT:
     """
@@ -73,6 +75,8 @@ class EnergyBalanceAT:
         df_eb.loc[1, "layer_0"] = "Total absolute values"
         if self.original_input:
             df_eb.dropna(axis="columns", how="all", inplace=True)
+        # Standardize column names by replacing spaces with underscores and stripping surrounding whitespace
+        df_eb.columns = [col.replace(" ", "_").strip() for col in df_eb.columns]
         return df_eb
 
     def create_multiindex_structure(self) -> None:
@@ -164,8 +168,12 @@ class EnergyBalanceAT:
                 else:
                     layer_1[i1] = valid_value_1
 
-        df_var_names["layer_0"] = layer_0
-        df_var_names["layer_1"] = layer_1
+        df_var_names["layer_0"] = layer_0.apply(
+            lambda x: replace_by_dict(str(x), eb_row_string_replacement_dict)
+        )
+        df_var_names["layer_1"] = layer_1.apply(
+            lambda x: replace_by_dict(str(x), eb_row_string_replacement_dict)
+        )
         var_names = []
 
         for index, row in df_var_names.iterrows():
@@ -176,13 +184,15 @@ class EnergyBalanceAT:
                     "-",
                     "=",
                 ]:
-                    var_name += ">" + row["layer_1"]
+                    var_name += "-" + row["layer_1"]
                     if not pd.isna(row["layer_2"]) and row["layer_2"] not in [
                         "+",
                         "-",
                         "=",
                     ]:
-                        var_name += ">" + row["layer_2"]
+                        var_name += "-" + replace_by_dict(
+                            row["layer_2"], eb_row_string_replacement_dict
+                        )
             elif not pd.isna(row["layer_1"]) and row["layer_1"] not in ["+", "-", "="]:
                 var_name = row["layer_1"]
                 if not pd.isna(row["layer_2"]) and row["layer_2"] not in [
@@ -190,9 +200,13 @@ class EnergyBalanceAT:
                     "-",
                     "=",
                 ]:
-                    var_name += ">" + row["layer_2"]
+                    var_name += "-" + replace_by_dict(
+                        row["layer_2"], eb_row_string_replacement_dict
+                    )
             elif not pd.isna(row["layer_2"]) and row["layer_2"] not in ["+", "-", "="]:
-                var_name = row["layer_2"]
+                var_name = replace_by_dict(
+                    row["layer_2"], eb_row_string_replacement_dict
+                )
             else:
                 var_name = None
             var_names.append(var_name)
@@ -745,6 +759,27 @@ def extract_true_keys(d: dict, prefix="") -> list:
         elif isinstance(value, dict):
             keylist.extend(extract_true_keys(value, current_path))
     return keylist
+
+
+def replace_by_dict(string: str, replacement_dict: dict) -> str:
+    """
+    Replaces all occurrences of each key in the given string with the corresponding value in the replacement_dict.
+
+    Parameters:
+    ----------
+    string : str
+        The string to replace substrings in.
+    replacement_dict : dict
+        A dictionary containing the strings to replace as keys and their replacements as values.
+
+    Returns:
+    -------
+    str:
+        The string with all occurrences of each key replaced.
+    """
+    for key, value in replacement_dict.items():
+        string = string.replace(key, value)
+    return string
 
 
 def main():
