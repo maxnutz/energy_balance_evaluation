@@ -22,6 +22,7 @@ from energy_balance_evaluation.statics import (
     rows_to_add_dict,
     rows_to_include_dict,
     non_numerical_columns_list,
+    eb_row_string_replacement_dict,
 )
 
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     "rows_to_include_dict",
     "rows_to_add_dict",
     "non_numerical_columns_list",
+    "eb_row_string_replacement_dict",
 ]

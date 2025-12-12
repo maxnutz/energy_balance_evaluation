@@ -115,6 +115,9 @@ rows_to_add_dict = {
     ],
 }
 
+# dict of string elements to be replaced when creating light energy balance names
+eb_row_string_replacement_dict = {" ": "_", ",": "_", "&": "and", "/": "_"}
+
 # non numerical columns in eurostat energy balance matrix
 non_numerical_columns_list = [
     "layer_0",
