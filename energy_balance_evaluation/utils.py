@@ -717,6 +717,36 @@ class CarriersNetwork:
         )
 
 
+def extract_true_keys(d: dict, prefix="") -> list:
+    """
+    Recursively traverses a dictionary, creates exact identification values
+    from dict structure and returns a list of keys that have a value of True.
+
+    Parameters:
+    -----------
+    d : dict
+        The dictionary to traverse.
+    prefix : str, optional
+        A prefix to add to the keys in the returned list. Defaults to "".
+
+    Returns:
+    --------
+    list: A list of keys with values of True.
+    """
+    keylist = []
+    for key, value in d.items():
+        current_path = f"{prefix}>{key}" if prefix else key
+
+        if isinstance(value, bool):
+            if value:
+                # Drop ">nan" if current key is "nan"
+                keylist.append(prefix if key == "nan" else current_path)
+
+        elif isinstance(value, dict):
+            keylist.extend(extract_true_keys(value, current_path))
+    return keylist
+
+
 def main():
     print("This will be a test of the module for energy balance evaluation.")
     try:
