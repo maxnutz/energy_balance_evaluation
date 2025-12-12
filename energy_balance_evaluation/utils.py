@@ -76,7 +76,7 @@ class EnergyBalanceAT:
         if self.original_input:
             df_eb.dropna(axis="columns", how="all", inplace=True)
         # Standardize column names by replacing spaces with underscores and stripping surrounding whitespace
-        df_eb.columns = [col.replace(" ", "_").strip() for col in df_eb.columns]
+        df_eb.columns = [str(col).replace(" ", "_").strip() for col in df_eb.columns]
         return df_eb
 
     def create_multiindex_structure(self) -> None:
@@ -169,11 +169,21 @@ class EnergyBalanceAT:
                     layer_1[i1] = valid_value_1
 
         df_var_names["layer_0"] = layer_0.apply(
-            lambda x: replace_by_dict(str(x), eb_row_string_replacement_dict)
+            lambda x: (
+                replace_by_dict(str(x), eb_row_string_replacement_dict)
+                if not pd.isna(x)
+                else pd.NA
+            )
         )
+
         df_var_names["layer_1"] = layer_1.apply(
-            lambda x: replace_by_dict(str(x), eb_row_string_replacement_dict)
+            lambda x: (
+                replace_by_dict(str(x), eb_row_string_replacement_dict)
+                if not pd.isna(x)
+                else pd.NA
+            )
         )
+
         var_names = []
 
         for index, row in df_var_names.iterrows():
