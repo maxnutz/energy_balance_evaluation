@@ -204,7 +204,9 @@ class EnergyBalanceAT:
                         row["layer_2"], eb_row_string_replacement_dict
                     )
             elif not pd.isna(row["layer_2"]) and row["layer_2"] not in ["+", "-", "="]:
-                var_name = row["layer_2"]
+                var_name = replace_by_dict(
+                    row["layer_2"], eb_row_string_replacement_dict
+                )
             else:
                 var_name = None
             var_names.append(var_name)
