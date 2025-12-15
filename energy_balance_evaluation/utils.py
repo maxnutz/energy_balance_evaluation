@@ -122,8 +122,16 @@ class EnergyBalanceAT:
                 if not pd.isna(row["layer_1"]):
                     last_valid_value_1 = row["layer_1"]
             df["layer_0"] = df["layer_0"].ffill()
+            for layer in ["layer_0", "layer_1", "layer_2"]:
+                df[layer] = df[layer].apply(
+                    lambda x: (
+                        np.nan
+                        if pd.isna(x)
+                        else replace_by_dict(x, eb_row_string_replacement_dict)
+                    )
+                )
             df.set_index(["layer_0", "layer_1", "layer_2"], inplace=True, drop=False)
-
+            ### hier evtl. einbauen, dass die layer in indexes normalisiert werden!
             df["depth"] = np.nan
             df["depth"] = [(sum(pd.notna(x) for x in idx) - 1) for idx in df.index]
         except Exception as e:
@@ -194,13 +202,13 @@ class EnergyBalanceAT:
                     "-",
                     "=",
                 ]:
-                    var_name += "-" + row["layer_1"]
+                    var_name += ">" + row["layer_1"]
                     if not pd.isna(row["layer_2"]) and row["layer_2"] not in [
                         "+",
                         "-",
                         "=",
                     ]:
-                        var_name += "-" + replace_by_dict(
+                        var_name += ">" + replace_by_dict(
                             row["layer_2"], eb_row_string_replacement_dict
                         )
             elif not pd.isna(row["layer_1"]) and row["layer_1"] not in ["+", "-", "="]:
@@ -210,7 +218,7 @@ class EnergyBalanceAT:
                     "-",
                     "=",
                 ]:
-                    var_name += "-" + replace_by_dict(
+                    var_name += ">" + replace_by_dict(
                         row["layer_2"], eb_row_string_replacement_dict
                     )
             elif not pd.isna(row["layer_2"]) and row["layer_2"] not in ["+", "-", "="]:
