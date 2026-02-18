@@ -7,7 +7,7 @@ from PIL import UnidentifiedImageError
 
 import pypsa
 
-from statics import eb_row_string_replacement_dict
+from .statics import eb_row_string_replacement_dict
 
 
 class EnergyBalanceReader:

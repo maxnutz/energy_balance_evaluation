@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 
-from utils import EnergyBalanceReader, read_mapping_csv
+from .utils import EnergyBalanceReader, read_mapping_csv
 from energy_balance_evaluation import (
     extract_true_keys,
     non_numerical_columns_list,
