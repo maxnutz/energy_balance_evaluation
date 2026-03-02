@@ -5,7 +5,7 @@ import numpy as np
 import yaml
 from pathlib import Path
 
-from .utils import EnergyBalanceReader, read_mapping_csv
+from energy_balance_evaluation.utils import EnergyBalanceReader, read_mapping_csv
 from energy_balance_evaluation import (
     extract_true_keys,
     non_numerical_columns_list,
@@ -311,18 +311,40 @@ class VariablesSet:
                 },
                 ...
             }
+
+        Raises
+        ------
+        FileNotFoundError
+            If the YAML definition file does not exist.
+        yaml.YAMLError
+            If the YAML file cannot be parsed.
+        ValueError
+            If the YAML structure is not as expected.
         """
         try:
             with open(self.filepath_definition, 'r') as f:
                 variables_list = yaml.safe_load(f)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"Variable definition file not found: {self.filepath_definition}"
+            )
         except yaml.YAMLError as e:
-            # Try with FullLoader for more lenient parsing
-            with open(self.filepath_definition, 'r') as f:
-                variables_list = yaml.load(f, Loader=yaml.FullLoader)
+            raise yaml.YAMLError(
+                f"Failed to parse YAML file {self.filepath_definition}: {str(e)}"
+            ) from e
+
+        if not isinstance(variables_list, list):
+            raise ValueError(
+                f"Expected YAML file to contain a list, got {type(variables_list).__name__}"
+            )
 
         # Convert list of dicts to dict with variable names as keys
         self.variables_dict = {}
         for item in variables_list:
+            if not isinstance(item, dict):
+                raise ValueError(
+                    f"Expected each YAML list item to be a dict, got {type(item).__name__}"
+                )
             # Each item should be a dict with one key (variable name)
             for var_name, var_metadata in item.items():
                 self.variables_dict[var_name] = var_metadata
@@ -371,7 +393,7 @@ class VariablesSet:
             DataFrame with columns: freq, nrg_bal, siec, unit, geo, and year columns
         """
         # Read TSV file, treating the header specially
-        df = pd.read_csv(filepath_tsv, sep=',|\t', dtype=str)
+        df = pd.read_csv(filepath_tsv, sep=",|\t", dtype=str, engine="python")
 
         # The first column header is 'freq,nrg_bal,siec,unit,geo\TIME_PERIOD'
         # We need to properly split this
@@ -385,11 +407,23 @@ class VariablesSet:
                 skiprows=1
             )
 
-        # Set column names properly
+        # Strip whitespace from column names which can appear in the
+        # pypsa-eur-download format (e.g. ' 1990 ' or
+        # 'geo\TIME_PERIOD').  This makes later column lookups much simpler.
+        df.columns = [col.strip() for col in df.columns]
+
+        # If the special combined geo column is present, rename it to 'geo'
+        # so that downstream code can always reference df['geo'].
+        # NOTE: the backslash must be escaped in the literal string.
+        if "geo\\TIME_PERIOD" in df.columns and "geo" not in df.columns:
+            df.rename(columns={"geo\\TIME_PERIOD": "geo"}, inplace=True)
+
+        # Set column names properly (after renaming) for later logic
         col_names = list(df.columns)
 
         # Convert numeric columns to float, handling ':' as missing
-        year_columns = col_names[5:]  # Years are after geo
+        # Years are expected after the first five columns
+        year_columns = col_names[5:]
         for year_col in year_columns:
             if year_col in df.columns:
                 df[year_col] = pd.to_numeric(
@@ -425,7 +459,12 @@ class VariablesSet:
 
         df = self.tsv_data.copy()
 
-        # Filter by country
+        # Filter by country - expect a column named 'geo' after loading.
+        if "geo" not in df.columns:
+            raise KeyError(
+                "TSV data did not contain a 'geo' column after loading. "
+                f"Available columns: {list(df.columns)[:10]}"
+            )
         df = df[df['geo'] == self.country]
 
         calculated_values = {}
@@ -449,9 +488,9 @@ class VariablesSet:
             # Get the value for the specified year
             if self.year in df_filtered.columns:
                 values = df_filtered[self.year].sum(skipna=True)
-                calculated_values[var_name] = float(values) if values > 0 else 0.0
+                calculated_values[var_name] = float(values) if values != 0 else 0.0
             else:
-                calculated_values[var_name] = 0.0
+                calculated_values[var_name] = np.nan
 
         return calculated_values
 
@@ -489,13 +528,10 @@ class VariablesSet:
             value = calculated_values.get(var_name, 0.0)
 
             entry = {
-                'variable': var_name,
-                'year': self.year,
-                'value': round(value, 3),  # Round to 3 decimal places
-                'validation': [
-                    {'rtol': 0.3},
-                    {'warning_level': 'low', 'rtol': 0.1}
-                ]
+                "variable": var_name,
+                "year": int(self.year),
+                "value": round(value, 3),  # Round to 3 decimal places
+                "validation": [{"rtol": 0.3}, {"warning_level": "low", "rtol": 0.1}],
             }
             codelist.append(entry)
 
@@ -516,14 +552,24 @@ class VariablesSet:
 def main():
     print("This is a unit test of the energy_balance_eval")
 
-    eb = EnergyBalance(
-        year=2023,
-        path_to_xlsb="resources/EnergyBalances/BalancesFebruary2026/AT-Energy-balance-sheets-February2026-edition.xlsb",
-        filepath_mapping_csv="resources/carrier_mapping_energy_balance.csv",
+    # eb = EnergyBalance(
+    #     year=2023,
+    #     path_to_xlsb="resources/EnergyBalances/BalancesFebruary2026/AT-Energy-balance-sheets-February2026-edition.xlsb",
+    #     filepath_mapping_csv="resources/carrier_mapping_energy_balance.csv",
+    #     country="AT",
+    #     original_input=True,
+    # )
+    # eb.create_reduced_energy_balance()
+
+    final_energy = VariablesSet(
+        set_name="final_energy",
+        year=2020,
+        filepath_definition="definitions/variable/final_energy.yaml",
+        filepath_codelist="definitions/validation/final_energy.yaml",
         country="AT",
-        original_input=True,
     )
-    eb.create_reduced_energy_balance()
+
+    final_energy.write_codelist()
 
 
 if __name__ == "__main__":
