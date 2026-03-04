@@ -36,7 +36,6 @@ applyTo: "**/*.py, **/*.yaml"
 - Add docstrings in NumPy-style format
 - Use pyam / pandas idioms instead of manual loops wherever possible 
 
-
 ## Task Completion Criteria
 A task is complete when:
 - Code runs without syntax errors.
@@ -44,7 +43,7 @@ A task is complete when:
 - New variables follow IAMC naming conventions.
 - Changes are integrated into existing folder structure.
 - A short summary of changes is provided.
-- In chat mode: the user has reviewed the changes and gave approval.
+- In chat mode: the user has reviewed the changes and given approval.
 
 ## Forbidden Actions
 

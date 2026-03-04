@@ -478,12 +478,9 @@ class VariablesSet:
             siec_codes = self._parse_codes(siec)
 
             # Special handling for 'TOTAL' siec code
-            if 'TOTAL' in siec_codes:
-                # When siec is 'TOTAL', match rows where siec is 'TOTAL'
-                df_filtered = df[df['nrg_bal'].isin(nrg_codes) & (df['siec'] == 'TOTAL')]
-            else:
-                # Match rows where siec matches any of the specified codes
-                df_filtered = df[df['nrg_bal'].isin(nrg_codes) & df['siec'].isin(siec_codes)]
+            df_filtered = df[
+                df["nrg_bal"].isin(nrg_codes) & df["siec"].isin(siec_codes)
+            ]
 
             # Get the value for the specified year
             if str(self.year) in df_filtered.columns:
@@ -513,13 +510,12 @@ class VariablesSet:
             calculated_values = self.calculate_variable_values(filepath_tsv)
         else:
             # Try to infer the path from typical project structure
-            cwd = Path(self.filepath_definition).parent.parent.parent
-            inferred_tsv = cwd / 'resources' / 'pypsa-eur-download.tsv'
+            inferred_tsv = Path("resources/estat_nrg_bal_c.tsv")
             if inferred_tsv.exists():
                 calculated_values = self.calculate_variable_values(str(inferred_tsv))
             else:
                 raise FileNotFoundError(
-                    f"filepath_tsv not provided and could not infer from project structure"
+                    f"filepath_tsv not provided and could not infer from resources in projects main directory."
                 )
 
         # Build output codelist
