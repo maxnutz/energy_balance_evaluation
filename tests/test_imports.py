@@ -13,12 +13,14 @@ class TestPackageImports(unittest.TestCase):
     def test_import_carrier_network(self):
         """Test import of CarrierNetwork and eval_all_networks"""
         from energy_balance_evaluation import CarrierNetwork, eval_all_networks
+
         self.assertIsNotNone(CarrierNetwork)
         self.assertIsNotNone(eval_all_networks)
 
     def test_import_utils(self):
         """Test import of utility functions"""
         from energy_balance_evaluation import extract_true_keys, read_mapping_csv
+
         self.assertIsNotNone(extract_true_keys)
         self.assertIsNotNone(read_mapping_csv)
 
@@ -30,6 +32,7 @@ class TestPackageImports(unittest.TestCase):
             non_numerical_columns_list,
             eb_row_string_replacement_dict,
         )
+
         self.assertIsNotNone(rows_to_include_dict)
         self.assertIsNotNone(rows_to_add_dict)
         self.assertIsNotNone(non_numerical_columns_list)
@@ -43,7 +46,7 @@ class TestPackageImports(unittest.TestCase):
             non_numerical_columns_list,
             eb_row_string_replacement_dict,
         )
-        
+
         self.assertIsInstance(rows_to_include_dict, dict)
         self.assertIsInstance(rows_to_add_dict, dict)
         self.assertIsInstance(non_numerical_columns_list, list)
@@ -57,12 +60,12 @@ class TestPackageImports(unittest.TestCase):
             non_numerical_columns_list,
             eb_row_string_replacement_dict,
         )
-        
+
         self.assertTrue(len(rows_to_include_dict) > 0)
         self.assertTrue(len(rows_to_add_dict) > 0)
         self.assertTrue(len(non_numerical_columns_list) > 0)
         self.assertTrue(len(eb_row_string_replacement_dict) > 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
