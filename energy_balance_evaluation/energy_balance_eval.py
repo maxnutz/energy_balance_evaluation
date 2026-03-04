@@ -4,6 +4,9 @@ import pandas as pd
 import numpy as np
 import yaml
 from pathlib import Path
+import gzip
+import warnings
+from urllib.request import urlopen
 
 
 class VariablesSet:
@@ -125,61 +128,9 @@ class VariablesSet:
         codes = [code.strip() for code in code_string.split(',')]
         return [code for code in codes if code]  # Remove empty strings
 
-    def _load_tsv_data(self, filepath_tsv: str) -> pd.DataFrame:
-        """
-        Load and parse TSV file with Eurostat energy balance data.
-
-        Parameters
-        ----------
-        filepath_tsv : str
-            Path to the TSV file
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with columns: freq, nrg_bal, siec, unit, geo, and year columns
-        """
-        # Read TSV file, treating the header specially
-        df = pd.read_csv(filepath_tsv, sep=",|\t", dtype=str, engine="python")
-
-        # The first column header is 'freq,nrg_bal,siec,unit,geo\TIME_PERIOD'
-        # We need to properly split this
-        first_col = df.columns[0]
-        if 'freq' in first_col and 'nrg_bal' in first_col:
-            # Header is malformed, need to read differently
-            df = pd.read_csv(
-                filepath_tsv,
-                sep='\t',
-                dtype=str,
-                skiprows=1
-            )
-
-        # Strip whitespace from column names which can appear in the
-        # pypsa-eur-download format (e.g. ' 1990 ' or
-        # 'geo\TIME_PERIOD').  This makes later column lookups much simpler.
-        df.columns = [col.strip() for col in df.columns]
-
-        # If the special combined geo column is present, rename it to 'geo'
-        # so that downstream code can always reference df['geo'].
-        # NOTE: the backslash must be escaped in the literal string.
-        if "geo\\TIME_PERIOD" in df.columns and "geo" not in df.columns:
-            df.rename(columns={"geo\\TIME_PERIOD": "geo"}, inplace=True)
-
-        # Set column names properly (after renaming) for later logic
-        col_names = list(df.columns)
-
-        # Convert numeric columns to float, handling ':' as missing
-        # Years are expected after the first five columns
-        year_columns = col_names[5:]
-        for year_col in year_columns:
-            if year_col in df.columns:
-                df[year_col] = pd.to_numeric(
-                    df[year_col].replace(':', np.nan), errors='coerce'
-                )
-
-        return df
-
-    def calculate_variable_values(self, filepath_tsv: str) -> dict:
+    def calculate_variable_values(
+        self, filepath_tsv: str | None = None
+    ) -> dict:  # only valid for old structure
         """
         Calculate variable values by querying the TSV file.
 
@@ -188,8 +139,8 @@ class VariablesSet:
 
         Parameters
         ----------
-        filepath_tsv : str
-            Path to the pypsa-eur-download.tsv file
+        filepath_tsv : str | None, optional
+            overwrites the default filepath and prevents from API download if file exists
 
         Returns
         -------
@@ -202,7 +153,7 @@ class VariablesSet:
 
         # Load TSV data (cache it)
         if self.tsv_data is None:
-            self.tsv_data = self._load_tsv_data(filepath_tsv)
+            self.tsv_data = fetch_and_load_tsv_data(filepath_tsv)
 
         df = self.tsv_data.copy()
 
@@ -252,18 +203,9 @@ class VariablesSet:
         if self.variables_dict is None:
             self.read_yaml_file()
 
-        # Calculate values if filepath_tsv is provided, otherwise expect values to exist
-        if filepath_tsv is not None:
-            calculated_values = self.calculate_variable_values(filepath_tsv)
-        else:
-            # Try to infer the path from typical project structure
-            inferred_tsv = Path("resources/estat_nrg_bal_c.tsv")
-            if inferred_tsv.exists():
-                calculated_values = self.calculate_variable_values(str(inferred_tsv))
-            else:
-                raise FileNotFoundError(
-                    f"filepath_tsv not provided and could not infer from resources in projects main directory."
-                )
+        # Data retrieval/loading is handled by fetch_and_load_tsv_data via
+        # calculate_variable_values
+        calculated_values = self.calculate_variable_values(filepath_tsv)
 
         # Build output codelist
         codelist = []
@@ -290,6 +232,90 @@ class VariablesSet:
                 sort_keys=False,
                 allow_unicode=True
             )
+
+
+def fetch_and_load_tsv_data(filepath_tsv: str | None = None) -> pd.DataFrame:
+    """
+    Load and parse Eurostat energy balance TSV data.
+
+    The function first looks for `resources/estat_nrg_bal_c.tsv`.
+    If that file does not exist, it is downloaded from the Eurostat API
+    and saved to the resources folder before loading.
+
+    Parameters
+    ----------
+    filepath_tsv : str | None, optional
+        overwrites the default filepath. If file does not exist, API download
+        saves to that location.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with columns: freq, nrg_bal, siec, unit, geo, and year columns
+    """
+    resource_path = Path("resources/estat_nrg_bal_c.tsv")
+    api_url = (
+        "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/"
+        "nrg_bal_c?format=TSV&compressed=true"
+    )
+    if filepath_tsv is not None:
+        resource_path = Path(filepath_tsv)
+    if not resource_path.exists():
+        warning_msg = (
+            "resources/estat_nrg_bal_c.tsv not found. Downloading from Eurostat API; "
+            "this can take some time."
+        )
+        warnings.warn(warning_msg, UserWarning)
+        print(f"WARNING: {warning_msg}")
+
+        resource_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with urlopen(api_url) as response:
+            payload = response.read()
+
+        # `compressed=true` returns gzip-compressed bytes.
+        # Fallback to plain UTF-8 content if decompression fails.
+        try:
+            content = gzip.decompress(payload).decode("utf-8")
+        except OSError:
+            content = payload.decode("utf-8")
+
+        resource_path.write_text(content, encoding="utf-8")
+
+    # Read TSV file, treating the header specially
+    df = pd.read_csv(resource_path, sep=",|\t", dtype=str, engine="python")
+
+    # The first column header is 'freq,nrg_bal,siec,unit,geo\TIME_PERIOD'
+    # We need to properly split this
+    first_col = df.columns[0]
+    if "freq" in first_col and "nrg_bal" in first_col:
+        # Header is malformed, need to read differently
+        df = pd.read_csv(filepath_tsv, sep="\t", dtype=str, skiprows=1)
+
+    # Strip whitespace from column names which can appear in the
+    # pypsa-eur-download format (e.g. ' 1990 ' or
+    # 'geo\TIME_PERIOD').  This makes later column lookups much simpler.
+    df.columns = [col.strip() for col in df.columns]
+
+    # If the special combined geo column is present, rename it to 'geo'
+    # so that downstream code can always reference df['geo'].
+    # NOTE: the backslash must be escaped in the literal string.
+    if "geo\\TIME_PERIOD" in df.columns and "geo" not in df.columns:
+        df.rename(columns={"geo\\TIME_PERIOD": "geo"}, inplace=True)
+
+    # Set column names properly (after renaming) for later logic
+    col_names = list(df.columns)
+
+    # Convert numeric columns to float, handling ':' as missing
+    # Years are expected after the first five columns
+    year_columns = col_names[5:]
+    for year_col in year_columns:
+        if year_col in df.columns:
+            df[year_col] = pd.to_numeric(
+                df[year_col].replace(":", np.nan), errors="coerce"
+            )
+
+    return df
 
 
 def main():
