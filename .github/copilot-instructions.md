@@ -51,7 +51,7 @@ A task is complete when:
 
 - Do NOT invent datasets, files, or APIs.
 - Do NOT assume undocumented variables exist.
-- Do NOT change any definitions in `definitions/` unless explicitely asked for.
+- Do NOT change any definitions in `definitions/` unless explicitly asked for.
 - Do NOT change folder structure unless explicitly requested.
 
 ## Testing Rules
