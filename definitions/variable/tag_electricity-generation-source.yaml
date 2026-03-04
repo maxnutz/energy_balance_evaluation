@@ -1,0 +1,29 @@
+- Electricity Generation by Source:
+  - Coal:
+        description: coal
+        EB: C0000X0350-0370,P1000
+        note: includes Peat (P1000)
+  - Oil:
+      description: oil
+  - Natural Gas:
+      description: fossil methane
+  - Biomass:
+      description: solid biomass
+  - Biogas:
+      description: gas from biogenic sources including landfill gas, sewer gas, and
+          biogas (lower methane content than fossil natural gas)
+  - E-Methane:
+      description: synthetic methane from renewable sources
+  - Hydro:
+      description: hydropower
+  - Solar:
+      description: solar photovoltaics (PV)
+  - Wind:
+      description: wind
+  - Geothermal:
+      description: geothermal energy
+  - Waste:
+      description: burning of waste
+  - Other Renewables:
+      description: other renewables including hydrogen
+      note: This variable is used by Umweltbundesamt.
