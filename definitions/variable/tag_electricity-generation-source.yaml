@@ -5,25 +5,37 @@
         note: includes Peat (P1000)
   - Oil:
       description: oil
+      EB: O4000XBIO
   - Natural Gas:
       description: fossil methane
+      EB: G3000
   - Biomass:
       description: solid biomass
+      EB: R5110-5150_W6000RI,R5160,R5300
+      note: does not include any blended gases - includes Charcoal (as Biofuels does)
   - Biogas:
       description: gas from biogenic sources including landfill gas, sewer gas, and
           biogas (lower methane content than fossil natural gas)
+      EB: R5300
   - E-Methane:
       description: synthetic methane from renewable sources
   - Hydro:
       description: hydropower
+      EB: RA100
   - Solar:
       description: solar photovoltaics (PV)
+      EB: RA420
   - Wind:
       description: wind
+      EB: RA300
   - Geothermal:
       description: geothermal energy
+      EB: RA200
   - Waste:
       description: burning of waste
+      EB: W6100_6220
+      note: Only non-renewable waste is included
   - Other Renewables:
       description: other renewables including hydrogen
-      note: This variable is used by Umweltbundesamt.
+      EB: RA500
+      note: This variable is used by Umweltbundesamt. tide wave ocean
