@@ -27,14 +27,15 @@ class VariablesSet:
         filepath_definition : str
             Path to the YAML file containing variable definitions
         filepath_codelist : str
-            Path where the output codelist YAML file will be written
+            yaml-filepath where the output will be written to - path will be extended by year
+            used for validation data in init. eg. filepath.yaml -> filepath_2020.yaml
         country : str, optional
             Country code to filter data (default: 'AT' for Austria)
         """
         self.name = set_name
         self.year = year
         self.filepath_definition = filepath_definition
-        self.filepath_codelist = filepath_codelist
+        self.filepath_codelist = filepath_codelist[:-5] + "_" + str(year) + ".yaml"
         self.country = country
         self.variables_dict = None  # Cache for parsed YAML
         self.tsv_data = None  # Cache for TSV data
@@ -298,7 +299,7 @@ def main():
         set_name="final_energy",
         year=2020,
         filepath_definition="definitions/variable/final_energy.yaml",
-        filepath_codelist="definitions/validation/final_energy.yaml",
+        filepath_codelist="validate_data/final_energy.yaml",
         country="AT",
     )
 
