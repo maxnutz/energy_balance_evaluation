@@ -3,7 +3,8 @@ applyTo: "**/*.py, **/*.yaml"
 ---
 
 # Project Overview 
-> [!NOTE] This is an AGENT.md - file for AI agents, specifically for Copilot in this case. It is used to provide instructions to the AI agent on how to interact with project and developers.
+> [!NOTE]
+> This is an AGENT.md - file for AI agents, specifically for Copilot in this case. It is used to provide instructions to the AI agent on how to interact with project and developers.
 
 ## Aim of the project
 - Create a consistent set of well-designed variables to be used for Energy Data Validation
