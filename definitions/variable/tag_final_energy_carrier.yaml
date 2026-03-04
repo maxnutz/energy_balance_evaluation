@@ -1,61 +1,61 @@
 - Final Energy Carrier:
     - Coal:
         description: coal
-        EB: C0000X0350-0370,P1000
+        NRG: C0000X0350-0370,P1000
         note: includes Peat (P1000)
     - Oil:
         description: oil
-        EB: O4000XBIO
+        NRG: O4000XBIO
     - Natural Gas:
         description: fossil methane
-        EB: G3000
+        NRG: G3000
     - Electricity:
         description: electricity
-        EB: E7000
+        NRG: E7000
     - Biomass:
         description: biomass including biomethane
-        EB: R5110-5150_W6000RI,R5160,R5300
+        NRG: R5110-5150_W6000RI,R5160,R5300
         note: does not include any blended gases - includes Charcoal (as Biofuels does)
     - Biofuels:
         description: liquid fuels including bioethanol, biodiesel, other biogenic liquids and spent lye
-        EB: R5210P,R5220P,R5230P,R5290,R5160
+        NRG: R5210P,R5220P,R5230P,R5290,R5160
         note: Only pure biofuels; blended biofuels are not included - includes Charcoal (as Biomass does)
     - E-Fuels:
         description: synthetic liquid fuels from renewable sources
     - Biogas:
         description: gas from biogenic sources including landfill gas, sewer gas, and biogas (lower methane content than fossil natural gas)
-        EB: R5300
+        NRG: R5300
     - Biomethane:
         description: synthetic methane from biogenic sources
-        EB: R5300
+        NRG: R5300
     - E-Methane:
         description: synthetic methane from renewable sources
     - Hydrogen:
         description: hydrogen produced from renewable electricity
     - Solar Thermal:
         description: solar thermal
-        EB: RA410
+        NRG: RA410
     - Waste:
         description: energy from waste
-        EB: W6100_6220
+        NRG: W6100_6220
         note: Only non-renewable waste is included
     - District Heat:
         description: heat delivered from district heating grids
-        EB: H8000
+        NRG: H8000
     - Ambient Heat:
         description: ambient heat using heat pumps, geothermal and solar thermal energy
-        EB: RA600
+        NRG: RA600
     - Other:
         description: other sources or carriers
 
 # aggregate categories where detailed reporting is not possible
     - Renewables:
         description: renewables including biomass and green hydrogen
-        EB: RA100,RA500,RA300,RA420,RA410,RA200,R5110-5150_W6000RI,R5160,R5300,W6210,R5210P,R5210B,R5220P,R5220B,R5230P,R5230B,R5290
+        NRG: RA100,RA500,RA300,RA420,RA410,RA200,R5110-5150_W6000RI,R5160,R5300,W6210,R5210P,R5210B,R5220P,R5220B,R5230P,R5230B,R5290
         note: This variable should only be used if separate reporting of renewables is
           not possible. - RA000 without RA600
     - Renewables incl. Ambient Heat:
         description: renewables including biomass, green hydrogen and ambient heat
-        EB: RA000
+        NRG: RA000
         note: This variable should only be used if separate reporting of renewables is
           not possible.
