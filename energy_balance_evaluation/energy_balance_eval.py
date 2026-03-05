@@ -38,7 +38,8 @@ class VariablesSet:
         self.name = set_name
         self.year = year
         self.filepath_definition = filepath_definition
-        self.filepath_codelist = filepath_codelist[:-5] + "_" + str(year) + ".yaml"
+        p = Path(filepath_codelist)
+        self.filepath_codelist = str(p.with_name(f"{p.stem}_{year}{p.suffix}"))
         self.country = country
         self.variables_dict = None  # Cache for parsed YAML
         self.tsv_data = None  # Cache for TSV data
@@ -290,7 +291,7 @@ def fetch_and_load_tsv_data(filepath_tsv: str | None = None) -> pd.DataFrame:
     first_col = df.columns[0]
     if "freq" in first_col and "nrg_bal" in first_col:
         # Header is malformed, need to read differently
-        df = pd.read_csv(filepath_tsv, sep="\t", dtype=str, skiprows=1)
+        df = pd.read_csv(resource_path, sep="\t", dtype=str, skiprows=1)
 
     # Strip whitespace from column names which can appear in the
     # pypsa-eur-download format (e.g. ' 1990 ' or

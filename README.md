@@ -1,7 +1,7 @@
 # ESM-validation-framework
 
 ![Python](https://img.shields.io/badge/python-3.11-blue)  
-![GitHub License](https://img.shields.io/github/license/maxnutz/energy_balance_evaluation)
+[![license](https://img.shields.io/badge/License-MIT-blue)](https://github.com/maxnutz/energy_balance_evaluation/blob/master/LICENSE)
 
 > [!NOTE]  
 > This package is currently in an **early state of development**. Expect ongoing changes and updates.

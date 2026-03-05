@@ -2,13 +2,13 @@
     description: Final energy consumption by all end-use sectors and all fuels
       excluding transmission/distribution losses
     unit: TJ
-    EB: FC_E,NRG_E
+    EB: FC_E
     note: Final energy consumption explicitly excludes energy sector
 - Final Energy [by Carrier]|{Final Energy Carrier}:
     description: Energy consumption of {Final Energy Carrier}
       excluding transmission/distribution losses
     unit: TJ
-    EB: FC_E,NRG_E
+    EB: FC_E
     note: Final energy consumption explicitly excludes energy sector
 - Final Energy [by Sector]|{Sector}:
     description: Energy consumption by the {Sector}
