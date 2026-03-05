@@ -19,6 +19,7 @@ applyTo: "**/*.py, **/*.yaml"
     - `eurostat_siec_present.csv`: siec-Definition of Eurostat variables
     - `adriane_variables.yaml`: a set of variables to be used as basis for the definitions/variable/variables.yaml - variables.
 - `tests`: package testing code.
+- `sister_packages`: folder holding packages that may be useful for the creation of energy_balance_evaluation. DO NOT change anything in here.
 
 ## Operating rules (Mandatory)
 - Prefer modifying existing modules over creating new files.
@@ -30,6 +31,7 @@ applyTo: "**/*.py, **/*.yaml"
     - input/output format is unclear
     - multiple architectural choices exist
     - required files are missing or unclear
+- use `pixi run` in comand-line statements, to run statements in the pixi environment of the project.
 
 ## Coding conventions
 - Use type hints for all functions.

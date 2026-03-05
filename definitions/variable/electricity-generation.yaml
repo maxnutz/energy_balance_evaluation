@@ -1,0 +1,9 @@
+- Secondary Energy|Electricity:
+    description: Total net generation of electricity (including transmission losses)
+    EB: GEP
+    unit: TWh
+- Secondary Energy|Electricity|{Electricity Generation by Source}:
+    description: Total net generation of electricity from {Electricity Generation by Source}
+    EB: TI_EHG_MAPE_E,TI_EHG_MAPCHP_E,TI_EHG_APE_E,TI_EHG_APCHP_E
+    unit: TWh
+    note: includes production electricity only AND CHP to be evaluated for elec carrier.
