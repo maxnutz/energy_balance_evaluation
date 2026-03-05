@@ -4,6 +4,7 @@ This package contains a set of tools for evaluating energy balances and pypsa ne
 The following classes and functions are available:
 
 - `EnergyBalance`: Class for evaluating the energy balance data
+- `VariablesSet`: Class for reading, validating, and writing variable codelists
 - `CarrierNetwork`: Class for evaluating the pypsa-network per carrier
 - `eval_all_networks`: Function for evaluating given network for all carriers in the respective network
 - `extract_true_keys`: Function for extracting keys from a dictionary where the value is True
@@ -12,12 +13,13 @@ The following classes and functions are available:
 - `non_numerical_columns_list`: List of non-numerical columns in eurostat energy balance matrix
 """
 
-# from energy_balance_evaluation.energy_balance_eval import EnergyBalance
+from energy_balance_evaluation.energy_balance_eval import EnergyBalance
 from energy_balance_evaluation.pypsa_network_eval import (
     CarrierNetwork,
     eval_all_networks,
 )
 from energy_balance_evaluation.utils import extract_true_keys, read_mapping_csv
+from energy_balance_evaluation.variable_structures import VariablesSet
 from energy_balance_evaluation.statics import (
     rows_to_add_dict,
     rows_to_include_dict,
@@ -26,7 +28,8 @@ from energy_balance_evaluation.statics import (
 )
 
 __all__ = [
-    # "EnergyBalance",
+    "EnergyBalance",
+    "VariablesSet",
     "CarrierNetwork",
     "eval_all_networks",
     "extract_true_keys",
