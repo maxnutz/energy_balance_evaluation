@@ -152,7 +152,17 @@ The topology diagram shows:
   - Multi-link bus2,3,4 - connections are marked *indirect*
 - **Lines** – shown as labelled directed edges
 
+> [!NOTE]
 > When the Mermaid code is too large for the URI-based rendering API, the
 > raw code is saved to a `.txt` file for manual rendering.
 
 ![methanol_small](https://github.com/user-attachments/assets/70a3239c-5d6c-4ffd-9c80-6e852fe54f53)
+
+## Limitations
+- The package gives a complete overview of buses, generators, loads, storage_units, links and lines with respect to the given carrier. 
+- This implies, that buses and other elements, not directly connected to the "main" bus, holding the given carrier, are only shown in relation to the given carrier. 
+
+> In the given example, this means, that there are probably more links connected to the bus "co2 atmosphere" than shown in this plot, but they are not directly related to the main carrier "methanol" in here.
+
+- Depending on the network-topology, plots can get very large and hard to understand. This is expecially given for carriers modeled on a single bus, as EU oil, EU methanol, EU gas, etc. Therefore use the `--bus-pattern` to filter buses. 
+- The package is still under development, so expect ongoing changes.
