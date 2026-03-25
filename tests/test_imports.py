@@ -23,10 +23,20 @@ class TestPackageImports(unittest.TestCase):
 
         self.assertIsNotNone(eval_all_networks)
 
+    def test_import_get_components_of_carrier(self):
+        from energy_balance_evaluation import get_components_of_carrier
+
+        self.assertIsNotNone(get_components_of_carrier)
+
     def test_all_exports(self):
         import energy_balance_evaluation as pkg
 
-        for name in ["CarrierNetwork", "CarriersNetwork", "eval_all_networks"]:
+        for name in [
+            "CarrierNetwork",
+            "CarriersNetwork",
+            "eval_all_networks",
+            "get_components_of_carrier",
+        ]:
             self.assertTrue(hasattr(pkg, name), f"Missing export: {name}")
 
 

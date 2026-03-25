@@ -19,7 +19,9 @@ pip install .
 
 ## CLI usage
 
-After installation the `pypsa-topology` command is available:
+After installation two CLI commands are available:
+
+### `pypsa-topology` – visualise carrier topology
 
 ```bash
 pypsa-topology <path_to_pypsa_file> <carrier> [--bus-pattern PATTERN]
@@ -45,6 +47,33 @@ pypsa-topology network.nc gas --bus-pattern AT0
 
 > **Note** – The `resources/` folder is excluded from git tracking and will be
 > created automatically the first time the tool runs.
+
+---
+
+### `component-of-carrier` – find which components use a carrier
+
+When the same carrier name is used by different component types in a network
+(e.g. a `Generator` *and* a `Link` both carry `"gas"`), this command shows
+all component types that are attached to the given carrier:
+
+```bash
+component-of-carrier <path_to_pypsa_file> <carrier>
+```
+
+| Argument             | Description                                      |
+|----------------------|--------------------------------------------------|
+| `path_to_pypsa_file` | Path to the pypsa network file (`.nc` / `.h5`)   |
+| `carrier`            | Carrier name to look up (exact match)            |
+
+Example output:
+
+```
+Components with carrier 'gas':
+  Generator: gen_gas_AT0, gen_gas_AT1
+  Load: load_gas_AT0
+  Link: link_gas_AT0_AT1
+  Bus: bus_gas_AT0, bus_gas_AT1
+```
 
 ---
 
@@ -123,6 +152,28 @@ mermaid_code = cn.get_mermaid_string()
 # Filter to a specific region
 cn_at0 = CarriersNetwork(carrier="gas", n=n, bus_pattern="AT0")
 ```
+
+---
+
+### `get_components_of_carrier`
+
+Find out which component types in a network use a given carrier name.
+
+```python
+import pypsa
+from energy_balance_evaluation import get_components_of_carrier
+
+n = pypsa.Network("my_network.nc")
+
+result = get_components_of_carrier(n, "gas")
+# e.g. {'Generator': ['gen_gas_AT0'], 'Link': ['link_gas'], 'Bus': ['bus_gas_AT0']}
+
+for component_type, names in result.items():
+    print(f"{component_type}: {', '.join(names)}")
+```
+
+Returns a `dict` mapping component type names to lists of matching component
+names.  Component types with no match for the carrier are omitted.
 
 ---
 

@@ -522,3 +522,56 @@ class CarriersNetwork:
         """
         mermaid_code = self.get_mermaid_string()
         self.create_mermaid_output(mermaid_code, folderpath, return_mermaid_code)
+
+
+def get_components_of_carrier(n: pypsa.Network, carrier: str) -> dict:
+    """
+    Return the network components that are attached to *carrier*.
+
+    Checks all one-port and branch component types for membership of the
+    given carrier and returns a mapping from component type name to the list
+    of component names that carry that carrier.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to inspect.
+    carrier : str
+        The carrier name to look up (exact match against the ``carrier``
+        column of each component DataFrame).
+
+    Returns
+    -------
+    dict of {str: list of str}
+        Keys are component type names (e.g. ``"Generator"``, ``"Load"``,
+        ``"Link"``, ``"Line"``, ``"Store"``, ``"StorageUnit"``).
+        Values are lists of component names whose carrier equals *carrier*.
+        Component types with no match are omitted from the result.
+
+    Examples
+    --------
+    >>> import pypsa
+    >>> n = pypsa.Network()
+    >>> n.add("Carrier", "gas")
+    >>> n.add("Bus", "bus_gas", carrier="gas")
+    >>> n.add("Generator", "gen_gas", bus="bus_gas", carrier="gas", p_nom=100)
+    >>> get_components_of_carrier(n, "gas")
+    {'Generator': ['gen_gas'], 'Bus': ['bus_gas']}
+    """
+    component_dfs = {
+        "Generator": n.generators,
+        "Load": n.loads,
+        "Link": n.links,
+        "Line": n.lines,
+        "Store": n.stores,
+        "StorageUnit": n.storage_units,
+        "Bus": n.buses,
+    }
+    result = {}
+    for component_type, df in component_dfs.items():
+        if "carrier" not in df.columns or df.empty:
+            continue
+        matched = df.index[df["carrier"] == carrier].tolist()
+        if matched:
+            result[component_type] = matched
+    return result

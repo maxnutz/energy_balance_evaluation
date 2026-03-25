@@ -10,16 +10,19 @@ Available classes and functions
                          carrier and generates Mermaid topology code.
 - ``eval_all_networks`` – convenience function to evaluate all carriers in a
                           network at once.
+- ``get_components_of_carrier`` – return which component types are attached to
+                                  a given carrier name.
 """
 
 from energy_balance_evaluation.pypsa_network_eval import (
     CarrierNetwork,
     eval_all_networks,
 )
-from energy_balance_evaluation.utils import CarriersNetwork
+from energy_balance_evaluation.utils import CarriersNetwork, get_components_of_carrier
 
 __all__ = [
     "CarrierNetwork",
     "CarriersNetwork",
     "eval_all_networks",
+    "get_components_of_carrier",
 ]
