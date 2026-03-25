@@ -149,7 +149,7 @@ The topology diagram shows:
 - **Loads** (rounded rectangles `( )`) – connected to their bus with a thick edge
 - **Storage units** – connected to their bus with a thick edge
 - **Links** – shown as labelled directed edges (`-- label -->`)
-  - Multi-link bus2 connections are marked *indirect*
+  - Multi-link bus2,3,4 - connections are marked *indirect*
 - **Lines** – shown as labelled directed edges
 
 > When the Mermaid code is too large for the URI-based rendering API, the
