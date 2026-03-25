@@ -1,241 +1,247 @@
 """
-Tests for utility functions and classes
+Tests for CarriersNetwork in energy_balance_evaluation.utils.
 """
 
 import unittest
-import pandas as pd
+
+import pypsa
 import pytest
-from unittest.mock import MagicMock, patch
-import sys
-import os
-from io import StringIO
 
 
-class TestExtractTrueKeys(unittest.TestCase):
-    """Test the extract_true_keys function"""
+class TestCarriersNetworkInit(unittest.TestCase):
+    """Test CarriersNetwork initialisation with a simple pypsa network."""
 
-    def test_extract_simple_dict_with_true(self):
-        """Test extracting True keys from a simple dictionary"""
-        from energy_balance_evaluation.utils import extract_true_keys
-
-        d = {
-            "key1": True,
-            "key2": False,
-            "key3": True,
-        }
-        result = extract_true_keys(d)
-        self.assertEqual(sorted(result), ["key1", "key3"])
-
-    def test_extract_nested_dict(self):
-        """Test extracting True keys from nested dictionaries"""
-        from energy_balance_evaluation.utils import extract_true_keys
-
-        d = {
-            "parent1": {
-                "child1": True,
-                "child2": False,
-            },
-            "parent2": {
-                "child3": True,
-            },
-        }
-        result = extract_true_keys(d)
-        self.assertIn("parent1>child1", result)
-        self.assertIn("parent2>child3", result)
-        self.assertNotIn("parent1>child2", result)
-
-    def test_extract_with_nan_key(self):
-        """Test that 'nan' keys are handled correctly"""
-        from energy_balance_evaluation.utils import extract_true_keys
-
-        d = {
-            "parent": {
-                "nan": True,
-                "child": True,
-            }
-        }
-        result = extract_true_keys(d)
-        self.assertIn("parent", result)  # 'nan' should be replaced with parent
-        self.assertIn("parent>child", result)
-
-    def test_extract_deeply_nested(self):
-        """Test with deeply nested dictionaries"""
-        from energy_balance_evaluation.utils import extract_true_keys
-
-        d = {
-            "level1": {
-                "level2": {
-                    "level3": {
-                        "key": True,
-                    }
-                }
-            }
-        }
-        result = extract_true_keys(d)
-        self.assertIn("level1>level2>level3>key", result)
-
-    def test_extract_empty_dict(self):
-        """Test with empty dictionary"""
-        from energy_balance_evaluation.utils import extract_true_keys
-
-        d = {}
-        result = extract_true_keys(d)
-        self.assertEqual(result, [])
-
-    def test_extract_all_false(self):
-        """Test dictionary with all False values"""
-        from energy_balance_evaluation.utils import extract_true_keys
-
-        d = {
-            "key1": False,
-            "key2": False,
-            "nested": {
-                "key3": False,
-                "key4": False,
-            },
-        }
-        result = extract_true_keys(d)
-        self.assertEqual(result, [])
-
-
-class TestReplaceByDict(unittest.TestCase):
-    """Test the replace_by_dict function"""
-
-    def test_simple_replacement(self):
-        """Test simple string replacement"""
-        from energy_balance_evaluation.utils import replace_by_dict
-
-        string = "Hello world"
-        replacement_dict = {"world": "universe"}
-        result = replace_by_dict(string, replacement_dict)
-        self.assertEqual(result, "Hello universe")
-
-    def test_multiple_replacements(self):
-        """Test multiple replacements"""
-        from energy_balance_evaluation.utils import replace_by_dict
-
-        string = "foo bar foo baz"
-        replacement_dict = {"foo": "FOO", "bar": "BAR"}
-        result = replace_by_dict(string, replacement_dict)
-        self.assertEqual(result, "FOO BAR FOO baz")
-
-    def test_no_matching_keys(self):
-        """Test when no keys match"""
-        from energy_balance_evaluation.utils import replace_by_dict
-
-        string = "original string"
-        replacement_dict = {"notfound": "replacement"}
-        result = replace_by_dict(string, replacement_dict)
-        self.assertEqual(result, "original string")
-
-    def test_empty_replacement_dict(self):
-        """Test with empty replacement dictionary"""
-        from energy_balance_evaluation.utils import replace_by_dict
-
-        string = "original string"
-        replacement_dict = {}
-        result = replace_by_dict(string, replacement_dict)
-        self.assertEqual(result, "original string")
-
-
-class TestReadMappingCSV(unittest.TestCase):
-    """Test the read_mapping_csv function"""
-
-    def test_read_mapping_csv_basic(self):
-        """Test reading a basic mapping CSV file"""
-        from energy_balance_evaluation.utils import read_mapping_csv
-        import tempfile
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write("Category;PyPSA_Carrier\nCoal;coal\nGas;gas\n")
-            f.flush()
-            temp_path = f.name
-
-        try:
-            df = read_mapping_csv(temp_path)
-
-            self.assertIsInstance(df, pd.DataFrame)
-            self.assertEqual(len(df), 2)
-            self.assertIn("Category", df.columns)
-            self.assertIn("PyPSA_Carrier", df.columns)
-        finally:
-            os.unlink(temp_path)
-
-    def test_read_mapping_csv_returns_dataframe(self):
-        """Test that function returns a pandas DataFrame"""
-        from energy_balance_evaluation.utils import read_mapping_csv
-        import tempfile
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write("Col1;Col2;Col3\n1;2;3\n4;5;6\n")
-            f.flush()
-            temp_path = f.name
-
-        try:
-            result = read_mapping_csv(temp_path)
-            self.assertIsInstance(result, pd.DataFrame)
-        finally:
-            os.unlink(temp_path)
-
-
-class TestEnergyBalanceReader(unittest.TestCase):
-    """Test the EnergyBalanceReader class"""
-
-    def _get_sample_df(self):
-        """Helper to create sample energy balance DataFrame"""
-        return pd.DataFrame(
-            {
-                "layer_0": [
-                    "Total_absolute_values",
-                    "Total_absolute_values",
-                    "Transformation_input",
-                    "Transformation_input",
-                ],
-                "layer_1": [
-                    None,
-                    None,
-                    "Electricity_and_heat_generation",
-                    "Electricity_and_heat_generation",
-                ],
-                "layer_2": [
-                    None,
-                    None,
-                    "Main_activity_producer_electricity_only",
-                    "Main_activity_producer_CHP",
-                ],
-                "index": ["Primary_production", "Imports", "Coal", "Gas"],
-                "+/-": [None, None, None, None],
-                "depth": [0, 0, 1, 1],
-                "1990": [100.0, 50.0, 25.0, 15.0],
-                "1991": [105.0, 52.0, 26.0, 16.0],
-                "1992": [110.0, 54.0, 27.0, 17.0],
-                "TOTAL": [100.0, 50.0, 25.0, 15.0],
-            }
+    def _make_network(self):
+        n = pypsa.Network()
+        n.add("Carrier", "gas")
+        n.add("Bus", "bus_gas_0", carrier="gas")
+        n.add("Bus", "bus_gas_1", carrier="gas")
+        n.add("Generator", "gen_gas_0", bus="bus_gas_0", carrier="gas", p_nom=200)
+        n.add("Load", "load_gas_1", bus="bus_gas_1", carrier="gas", p_set=100)
+        n.add(
+            "Link",
+            "link_gas",
+            bus0="bus_gas_0",
+            bus1="bus_gas_1",
+            carrier="gas",
+            p_nom=150,
         )
+        return n
 
-    def test_reader_initialization_with_dataframe(self):
-        """Test initializing EnergyBalanceReader with a DataFrame"""
-        from energy_balance_evaluation.utils import EnergyBalanceReader
+    def test_initialization(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
 
-        reader = EnergyBalanceReader(
-            "2023",
-            input_matrix=self._get_sample_df(),
+        n = self._make_network()
+        cn = CarriersNetwork("gas", n)
+        self.assertEqual(cn.carrier, "gas")
+
+    def test_buses_not_empty(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network()
+        cn = CarriersNetwork("gas", n)
+        self.assertFalse(cn.buses.empty)
+
+    def test_generators_not_empty(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network()
+        cn = CarriersNetwork("gas", n)
+        self.assertFalse(cn.generators.empty)
+
+    def test_loads_not_empty(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network()
+        cn = CarriersNetwork("gas", n)
+        self.assertFalse(cn.loads.empty)
+
+    def test_links_not_empty(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network()
+        cn = CarriersNetwork("gas", n)
+        self.assertFalse(cn.links.empty)
+
+    def test_no_buses_raises(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = pypsa.Network()
+        n.add("Carrier", "wind")
+        with self.assertRaises(Exception):
+            CarriersNetwork("wind", n)
+
+    def test_get_mermaid_string_returns_string(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network()
+        cn = CarriersNetwork("gas", n)
+        mermaid = cn.get_mermaid_string()
+        self.assertIsInstance(mermaid, str)
+
+    def test_get_mermaid_string_starts_with_flowchart(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network()
+        cn = CarriersNetwork("gas", n)
+        mermaid = cn.get_mermaid_string()
+        self.assertTrue(mermaid.startswith("flowchart LR;"))
+
+    def test_get_mermaid_string_contains_bus(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network()
+        cn = CarriersNetwork("gas", n)
+        mermaid = cn.get_mermaid_string()
+        self.assertIn("bus_gas_0", mermaid)
+
+
+class TestCarriersNetworkBusPattern(unittest.TestCase):
+    """Test bus_pattern filtering in CarriersNetwork."""
+
+    def _make_network(self):
+        """Network with two buses: bus_gas_AT0 and bus_gas_AT1."""
+        n = pypsa.Network()
+        n.add("Carrier", "gas")
+        n.add("Bus", "bus_gas_AT0", carrier="gas")
+        n.add("Bus", "bus_gas_AT1", carrier="gas")
+        n.add("Generator", "gen_AT0", bus="bus_gas_AT0", carrier="gas", p_nom=100)
+        n.add("Generator", "gen_AT1", bus="bus_gas_AT1", carrier="gas", p_nom=50)
+        n.add("Load", "load_AT0", bus="bus_gas_AT0", carrier="gas", p_set=80)
+        n.add(
+            "Link",
+            "link_AT0_AT1",
+            bus0="bus_gas_AT0",
+            bus1="bus_gas_AT1",
+            carrier="gas",
+            p_nom=60,
         )
+        return n
 
-        self.assertIsNotNone(reader.df_eb)
-        self.assertIsInstance(reader.df_eb, pd.DataFrame)
+    def test_bus_pattern_filters_buses(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
 
-    def test_reader_has_expected_attributes(self):
-        """Test that reader has expected attributes"""
-        from energy_balance_evaluation.utils import EnergyBalanceReader
+        n = self._make_network()
+        cn = CarriersNetwork("gas", n, bus_pattern="AT0")
+        # Only AT0 bus should be present
+        self.assertTrue(all("AT0" in idx for idx in cn.buses.index))
 
-        reader = EnergyBalanceReader(
-            "2023",
-            input_matrix=self._get_sample_df(),
+    def test_bus_pattern_filters_generators(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network()
+        cn = CarriersNetwork("gas", n, bus_pattern="AT0")
+        # Only generator attached to AT0 bus
+        self.assertEqual(len(cn.generators), 1)
+        self.assertEqual(cn.generators.index[0], "gen_AT0")
+
+    def test_bus_pattern_filters_loads(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network()
+        cn = CarriersNetwork("gas", n, bus_pattern="AT0")
+        self.assertEqual(len(cn.loads), 1)
+        self.assertEqual(cn.loads.index[0], "load_AT0")
+
+    def test_bus_pattern_keeps_connected_links(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network()
+        cn = CarriersNetwork("gas", n, bus_pattern="AT0")
+        # The link between AT0 and AT1 should still be visible
+        self.assertFalse(cn.links.empty)
+
+    def test_bus_pattern_no_match_raises(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network()
+        with self.assertRaises(Exception):
+            CarriersNetwork("gas", n, bus_pattern="NONEXISTENT")
+
+    def test_bus_pattern_mermaid_excludes_other_bus(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network()
+        cn_full = CarriersNetwork("gas", n)
+        cn_filtered = CarriersNetwork("gas", n, bus_pattern="AT0")
+        mermaid_full = cn_full.get_mermaid_string()
+        mermaid_filtered = cn_filtered.get_mermaid_string()
+        # gen_AT1 should appear in full but not in filtered
+        self.assertIn("gen_AT1", mermaid_full)
+        self.assertNotIn("gen_AT1", mermaid_filtered)
+
+
+class TestMultiLink(unittest.TestCase):
+    """Test that bus3 / bus4 multilinks are fully handled."""
+
+    def _make_network_with_multilink(self):
+        """Network with a 4-port link (bus0..bus3) and a 5-port link (bus0..bus4)."""
+        n = pypsa.Network()
+        n.add("Carrier", "gas")
+        for i in range(5):
+            n.add("Bus", f"bus_gas_{i}", carrier="gas")
+
+        # 4-port link: bus0, bus1, bus2, bus3
+        n.add(
+            "Link",
+            "link_4port",
+            bus0="bus_gas_0",
+            bus1="bus_gas_1",
+            bus2="bus_gas_2",
+            bus3="bus_gas_3",
+            carrier="gas",
+            p_nom=100,
         )
+        # 5-port link: bus0, bus1, bus2, bus3, bus4
+        n.add(
+            "Link",
+            "link_5port",
+            bus0="bus_gas_0",
+            bus1="bus_gas_1",
+            bus2="bus_gas_2",
+            bus3="bus_gas_3",
+            bus4="bus_gas_4",
+            carrier="gas",
+            p_nom=50,
+        )
+        return n
 
-        self.assertTrue(hasattr(reader, "df_eb"))
-        self.assertTrue(hasattr(reader, "df_variables"))
+    def test_get_links_includes_bus3_and_bus4(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network_with_multilink()
+        cn = CarriersNetwork("gas", n)
+        self.assertFalse(cn.links.empty)
+        self.assertIn("link_4port", cn.links.index)
+        self.assertIn("link_5port", cn.links.index)
+
+    def test_extra_bus_cols_detects_bus3_bus4(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network_with_multilink()
+        cn = CarriersNetwork("gas", n)
+        extra = cn._extra_bus_cols(cn.links)
+        self.assertIn("bus2", extra)
+        self.assertIn("bus3", extra)
+        self.assertIn("bus4", extra)
+
+    def test_mermaid_string_contains_bus3_and_bus4(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network_with_multilink()
+        cn = CarriersNetwork("gas", n)
+        mermaid = cn.get_mermaid_string()
+        self.assertIn("bus_gas_3", mermaid)
+        self.assertIn("bus_gas_4", mermaid)
+
+    def test_mermaid_string_indirect_edge_label_for_bus3(self):
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = self._make_network_with_multilink()
+        cn = CarriersNetwork("gas", n)
+        mermaid = cn.get_mermaid_string()
+        self.assertIn("indirect bus3", mermaid)
+        self.assertIn("indirect bus4", mermaid)
 
 
 if __name__ == "__main__":
