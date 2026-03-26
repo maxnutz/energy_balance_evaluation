@@ -27,16 +27,15 @@ class TestPackageImports(unittest.TestCase):
         from energy_balance_evaluation import get_components_of_carrier
 
         self.assertIsNotNone(get_components_of_carrier)
+    def test_import_input_error(self):
+        from energy_balance_evaluation import InputError
+
+        self.assertIsNotNone(InputError)
 
     def test_all_exports(self):
         import energy_balance_evaluation as pkg
 
-        for name in [
-            "CarrierNetwork",
-            "CarriersNetwork",
-            "eval_all_networks",
-            "get_components_of_carrier",
-        ]:
+        for name in ["CarrierNetwork", "CarriersNetwork", "InputError", "eval_all_networks"]:
             self.assertTrue(hasattr(pkg, name), f"Missing export: {name}")
 
 
