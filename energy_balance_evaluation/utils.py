@@ -16,6 +16,13 @@ class InputError(Exception):
 
 
 class CarriersNetwork:
+    # ------------------------------------------------------------------
+    # Bus-count limit constants
+    # ------------------------------------------------------------------
+    _BUS_LIMIT_TRIGGER: int = 7   # trim when primary bus count exceeds this
+    _BUS_LIMIT_TARGET: int = 5    # how many primary buses to keep after trimming
+    _BUS_HARD_CAP: int = 12       # absolute maximum primary bus count
+
     def __init__(
         self,
         carrier: str,
@@ -87,6 +94,11 @@ class CarriersNetwork:
             self.reduce_to_one_node(search_therm)
         if bus_pattern is not None:
             self.filter_by_bus_pattern(bus_pattern)
+        else:
+            # Even without a bus_pattern, enforce the hard cap so that large
+            # networks (e.g. a carrier present in every country bus) don't
+            # produce an unreadable diagram.
+            self._apply_bus_limit()
 
     def _find_buses_by_carrier(self) -> pd.DataFrame:
         """
@@ -244,6 +256,9 @@ class CarriersNetwork:
         attached to a matching bus are kept.  Links and lines are kept when
         at least one of their bus endpoints matches the pattern.
 
+        After filtering, :meth:`_apply_bus_limit` is called automatically so
+        that an unexpectedly large result set is trimmed to a manageable size.
+
         Parameters
         ----------
         bus_pattern : str
@@ -255,6 +270,17 @@ class CarriersNetwork:
                 f"No buses matching pattern '{bus_pattern}' found for carrier "
                 + self.carrier
             )
+        self._refilter_by_buses()
+        self._apply_bus_limit()
+
+    def _refilter_by_buses(self) -> None:
+        """
+        Refilter all component DataFrames so they are consistent with
+        ``self.buses``.
+
+        Called internally after any operation that changes ``self.buses``
+        (e.g. :meth:`filter_by_bus_pattern` and :meth:`_apply_bus_limit`).
+        """
         self.generators = self.generators[
             self.generators.bus.isin(self.buses.index)
         ]
@@ -277,6 +303,26 @@ class CarriersNetwork:
             ]
         ).drop_duplicates()
         self.processes = self.get_all_processes()
+
+    def _apply_bus_limit(self) -> None:
+        """
+        Trim the primary bus list when it is too large and refilter components.
+
+        When the number of primary carrier buses (:attr:`buses`) exceeds
+        :attr:`_BUS_LIMIT_TRIGGER` (default 7), the list is truncated to the
+        first :attr:`_BUS_LIMIT_TARGET` (default 5) buses.  An absolute hard
+        cap of :attr:`_BUS_HARD_CAP` (default 12) is always enforced.
+
+        After trimming all component DataFrames are updated via
+        :meth:`_refilter_by_buses` to stay consistent.
+        """
+        n = len(self.buses)
+        if n > self._BUS_HARD_CAP:
+            self.buses = self.buses.iloc[: self._BUS_HARD_CAP]
+            self._refilter_by_buses()
+        elif n > self._BUS_LIMIT_TRIGGER:
+            self.buses = self.buses.iloc[: self._BUS_LIMIT_TARGET]
+            self._refilter_by_buses()
 
     def get_generators(self) -> pd.DataFrame:
         """
@@ -608,7 +654,10 @@ class CarriersNetwork:
 
         Initial components found by the carrier search are highlighted with a
         pink fill (``#f9d5e5`` / ``#cc0066`` border) via Mermaid ``style``
-        statements appended to the flowchart.
+        statements appended to the flowchart.  Only components that are
+        actually present in the (possibly filtered) network are highlighted;
+        components removed by ``bus_pattern`` filtering or bus-count limiting
+        do not appear.
 
         Returns
         -------
@@ -621,24 +670,30 @@ class CarriersNetwork:
         )
         code = "flowchart LR;\n  " + "\n  ".join(flat)
 
-        # Append style statements to highlight the initial carrier components
+        # Highlight the initial carrier components that are still in the
+        # (possibly filtered) network.  We intersect initial_components with
+        # the current state so that buses/components removed by bus_pattern
+        # filtering or bus-count limiting do NOT get spurious style entries.
         if self.initial_components is not None and not self.initial_components.empty:
             highlight = "fill:#f9d5e5,stroke:#cc0066,stroke-width:2px"
-            initial_names = self.initial_components.index.tolist()
             style_lines: list[str] = []
 
-            if self.initial_component_type == "bus":
-                for name in initial_names:
-                    node_id = "BUS_" + name.replace(" ", "_")
-                    style_lines.append(f"style {node_id} {highlight}")
-            elif self.initial_component_type in (
-                "generator",
-                "load",
-                "storage_unit",
-                "store",
-            ):
-                for name in initial_names:
-                    node_id = name.replace(" ", "_")
+            # Map each node-type component to the DataFrame that holds its
+            # current (possibly filtered) state.
+            _node_type_map: dict[str, pd.DataFrame] = {
+                "bus": self.buses,
+                "store": self.stores,
+                "storage_unit": self.storage_units,
+                "generator": self.generators,
+                "load": self.loads,
+            }
+
+            if self.initial_component_type in _node_type_map:
+                current_df = _node_type_map[self.initial_component_type]
+                active = set(self.initial_components.index) & set(current_df.index)
+                prefix = "BUS_" if self.initial_component_type == "bus" else ""
+                for name in active:
+                    node_id = prefix + name.replace(" ", "_")
                     style_lines.append(f"style {node_id} {highlight}")
             # For links and lines the thick-arrow edge style applied in
             # mermaid_carriers_network() serves as the visual highlight;

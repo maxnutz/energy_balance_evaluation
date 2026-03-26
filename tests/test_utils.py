@@ -627,5 +627,156 @@ class TestStoresInMermaid(unittest.TestCase):
         self.assertIn("STORE h2_cavern", mermaid)
 
 
+class TestHighlightFiltering(unittest.TestCase):
+    """
+    Tests that style highlight statements in Mermaid output only reference
+    components that are actually present in the (possibly filtered) network.
+    """
+
+    def _make_storage_unit_network(self, regions: list[str]) -> pypsa.Network:
+        """
+        Network with ``len(regions)`` low-voltage buses and one home-battery
+        storage-unit per region.  Entry-point carrier is 'home battery'.
+        """
+        n = pypsa.Network()
+        n.add("Carrier", "low voltage")
+        n.add("Carrier", "home battery")
+        for r in regions:
+            n.add("Bus", f"{r} low voltage", carrier="low voltage")
+            n.add("Bus", f"{r} home battery", carrier="home battery")
+            n.add(
+                "StorageUnit",
+                f"{r} home battery su",
+                bus=f"{r} home battery",
+                carrier="home battery",
+                p_nom=10,
+            )
+            n.add(
+                "Link",
+                f"{r} home battery charger",
+                bus0=f"{r} low voltage",
+                bus1=f"{r} home battery",
+                carrier="home battery charger",
+                p_nom=5,
+            )
+        return n
+
+    def test_bus_pattern_style_only_filtered_buses(self):
+        """After bus_pattern filtering only the matching bus should be styled."""
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        regions = ["AT12", "AT13", "AT21"]
+        n = self._make_storage_unit_network(regions)
+        cn = CarriersNetwork("home battery", n, bus_pattern="AT12")
+        mermaid = cn.get_mermaid_string()
+
+        # AT12 home battery bus must be styled (still in diagram)
+        self.assertIn("style BUS_AT12_home_battery", mermaid)
+        # Other regions must NOT appear in style statements
+        self.assertNotIn("style BUS_AT13_home_battery", mermaid)
+        self.assertNotIn("style BUS_AT21_home_battery", mermaid)
+
+    def test_storage_unit_bus_pattern_mermaid_no_spurious_styles(self):
+        """Mermaid output must not contain style entries for absent nodes."""
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        regions = ["AT12", "AT13", "AT21"]
+        n = self._make_storage_unit_network(regions)
+        cn = CarriersNetwork("home battery", n, bus_pattern="AT12")
+        mermaid = cn.get_mermaid_string()
+
+        # Count style statements – only AT12 home battery should be styled
+        style_count = sum(
+            1 for line in mermaid.splitlines() if "style BUS_" in line
+        )
+        self.assertEqual(style_count, 1)
+
+    def test_bus_type_bus_pattern_style_only_filtered(self):
+        """Bus-type carrier: only matching buses appear in style statements."""
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        n = pypsa.Network()
+        n.add("Carrier", "gas")
+        for i in range(4):
+            n.add("Bus", f"region{i} gas", carrier="gas")
+        cn = CarriersNetwork("gas", n, bus_pattern="region0")
+        mermaid = cn.get_mermaid_string()
+
+        self.assertIn("style BUS_region0_gas", mermaid)
+        self.assertNotIn("style BUS_region1_gas", mermaid)
+        self.assertNotIn("style BUS_region2_gas", mermaid)
+        self.assertNotIn("style BUS_region3_gas", mermaid)
+
+
+class TestBusLimit(unittest.TestCase):
+    """
+    Tests for the automatic bus-count limit (>7 → trim to 5, hard cap 12).
+    """
+
+    def _make_bus_network(self, n_buses: int, carrier: str = "gas") -> pypsa.Network:
+        net = pypsa.Network()
+        net.add("Carrier", carrier)
+        for i in range(n_buses):
+            net.add("Bus", f"bus{i} {carrier}", carrier=carrier)
+        return net
+
+    def test_fewer_than_limit_not_trimmed(self):
+        """Networks with ≤ 7 buses must not be trimmed."""
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        cn = CarriersNetwork("gas", self._make_bus_network(7))
+        self.assertEqual(len(cn.buses), 7)
+
+    def test_more_than_trigger_trimmed_to_target(self):
+        """Networks with 8+ buses are trimmed to 5."""
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        cn = CarriersNetwork("gas", self._make_bus_network(10))
+        self.assertEqual(len(cn.buses), CarriersNetwork._BUS_LIMIT_TARGET)
+
+    def test_hard_cap_enforced(self):
+        """Networks with > 12 buses are trimmed to hard-cap value."""
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        cn = CarriersNetwork("gas", self._make_bus_network(20))
+        self.assertLessEqual(len(cn.buses), CarriersNetwork._BUS_HARD_CAP)
+
+    def test_components_consistent_after_limit(self):
+        """After trimming, all generator buses must be in self.buses."""
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        net = pypsa.Network()
+        net.add("Carrier", "gas")
+        for i in range(10):
+            net.add("Bus", f"bus{i} gas", carrier="gas")
+            net.add(
+                "Generator",
+                f"gen{i}",
+                bus=f"bus{i} gas",
+                carrier="gas",
+                p_nom=10,
+            )
+        cn = CarriersNetwork("gas", net)
+        bus_set = set(cn.buses.index)
+        for _, row in cn.generators.iterrows():
+            self.assertIn(row.bus, bus_set)
+
+    def test_bus_pattern_then_limit(self):
+        """bus_pattern filter followed by bus-count limit stays consistent."""
+        from energy_balance_evaluation.utils import CarriersNetwork
+
+        net = pypsa.Network()
+        net.add("Carrier", "gas")
+        # 10 AT buses + 5 DE buses
+        for i in range(10):
+            net.add("Bus", f"AT{i} gas", carrier="gas")
+        for i in range(5):
+            net.add("Bus", f"DE{i} gas", carrier="gas")
+        # Filter to AT buses only (10 → should be trimmed to 5)
+        cn = CarriersNetwork("gas", net, bus_pattern="AT")
+        self.assertEqual(len(cn.buses), CarriersNetwork._BUS_LIMIT_TARGET)
+        self.assertTrue(all("AT" in idx for idx in cn.buses.index))
+
+
 if __name__ == "__main__":
     unittest.main()
