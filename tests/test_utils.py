@@ -303,7 +303,7 @@ class TestGetComponentsOfCarrier(unittest.TestCase):
         n = self._make_multi_component_network()
         result = get_components_of_carrier(n, "gas")
         self.assertIn("Generator", result)
-        self.assertIn("gen_gas", result["Generator"])
+        self.assertEqual(result["Generator"], 1)
 
     def test_load_included(self):
         from energy_balance_evaluation.utils import get_components_of_carrier
@@ -311,7 +311,7 @@ class TestGetComponentsOfCarrier(unittest.TestCase):
         n = self._make_multi_component_network()
         result = get_components_of_carrier(n, "gas")
         self.assertIn("Load", result)
-        self.assertIn("load_gas", result["Load"])
+        self.assertEqual(result["Load"], 1)
 
     def test_link_included(self):
         from energy_balance_evaluation.utils import get_components_of_carrier
@@ -319,7 +319,7 @@ class TestGetComponentsOfCarrier(unittest.TestCase):
         n = self._make_multi_component_network()
         result = get_components_of_carrier(n, "gas")
         self.assertIn("Link", result)
-        self.assertIn("link_gas", result["Link"])
+        self.assertEqual(result["Link"], 1)
 
     def test_store_included(self):
         from energy_balance_evaluation.utils import get_components_of_carrier
@@ -327,7 +327,7 @@ class TestGetComponentsOfCarrier(unittest.TestCase):
         n = self._make_multi_component_network()
         result = get_components_of_carrier(n, "gas")
         self.assertIn("Store", result)
-        self.assertIn("store_gas", result["Store"])
+        self.assertEqual(result["Store"], 1)
 
     def test_storage_unit_included(self):
         from energy_balance_evaluation.utils import get_components_of_carrier
@@ -335,7 +335,7 @@ class TestGetComponentsOfCarrier(unittest.TestCase):
         n = self._make_multi_component_network()
         result = get_components_of_carrier(n, "gas")
         self.assertIn("StorageUnit", result)
-        self.assertIn("su_gas", result["StorageUnit"])
+        self.assertEqual(result["StorageUnit"], 1)
 
     def test_bus_included(self):
         from energy_balance_evaluation.utils import get_components_of_carrier
@@ -343,14 +343,23 @@ class TestGetComponentsOfCarrier(unittest.TestCase):
         n = self._make_multi_component_network()
         result = get_components_of_carrier(n, "gas")
         self.assertIn("Bus", result)
-        self.assertIn("bus_gas", result["Bus"])
+        self.assertEqual(result["Bus"], 1)
 
-    def test_other_carrier_not_included(self):
+    def test_returns_integer_counts(self):
         from energy_balance_evaluation.utils import get_components_of_carrier
 
         n = self._make_multi_component_network()
         result = get_components_of_carrier(n, "gas")
-        self.assertNotIn("gen_elec", result.get("Generator", []))
+        for count in result.values():
+            self.assertIsInstance(count, int)
+
+    def test_other_carrier_count_not_included(self):
+        from energy_balance_evaluation.utils import get_components_of_carrier
+
+        n = self._make_multi_component_network()
+        result = get_components_of_carrier(n, "gas")
+        # electricity generator must NOT inflate the gas generator count
+        self.assertEqual(result.get("Generator", 0), 1)
 
     def test_unknown_carrier_returns_empty_dict(self):
         from energy_balance_evaluation.utils import get_components_of_carrier

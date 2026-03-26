@@ -526,11 +526,11 @@ class CarriersNetwork:
 
 def get_components_of_carrier(n: pypsa.Network, carrier: str) -> dict:
     """
-    Return the network components that are attached to *carrier*.
+    Return the count of network components attached to *carrier* per type.
 
     Checks all one-port and branch component types for membership of the
-    given carrier and returns a mapping from component type name to the list
-    of component names that carry that carrier.
+    given carrier and returns a mapping from component type name to the
+    number of components carrying that carrier.
 
     Parameters
     ----------
@@ -542,10 +542,10 @@ def get_components_of_carrier(n: pypsa.Network, carrier: str) -> dict:
 
     Returns
     -------
-    dict of {str: list of str}
+    dict of {str: int}
         Keys are component type names (e.g. ``"Generator"``, ``"Load"``,
-        ``"Link"``, ``"Line"``, ``"Store"``, ``"StorageUnit"``).
-        Values are lists of component names whose carrier equals *carrier*.
+        ``"Link"``, ``"Line"``, ``"Store"``, ``"StorageUnit"``, ``"Bus"``).
+        Values are the number of components whose carrier equals *carrier*.
         Component types with no match are omitted from the result.
 
     Examples
@@ -556,7 +556,7 @@ def get_components_of_carrier(n: pypsa.Network, carrier: str) -> dict:
     >>> n.add("Bus", "bus_gas", carrier="gas")
     >>> n.add("Generator", "gen_gas", bus="bus_gas", carrier="gas", p_nom=100)
     >>> get_components_of_carrier(n, "gas")
-    {'Generator': ['gen_gas'], 'Bus': ['bus_gas']}
+    {'Generator': 1, 'Bus': 1}
     """
     component_dfs = {
         "Generator": n.generators,
@@ -571,7 +571,7 @@ def get_components_of_carrier(n: pypsa.Network, carrier: str) -> dict:
     for component_type, df in component_dfs.items():
         if "carrier" not in df.columns or df.empty:
             continue
-        matched = df.index[df["carrier"] == carrier].tolist()
-        if matched:
-            result[component_type] = matched
+        count = int((df["carrier"] == carrier).sum())
+        if count > 0:
+            result[component_type] = count
     return result

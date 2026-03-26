@@ -222,6 +222,16 @@ def main_component_of_carrier() -> None:
         print(f"No components found for carrier '{args.carrier}'.")
         return
 
-    print(f"Components with carrier '{args.carrier}':")
-    for component_type, names in result.items():
-        print(f"  {component_type}: {', '.join(names)}")
+    print(f"Carrier '{args.carrier}':")
+    plural = {
+        "Generator": "Generators",
+        "Load": "Loads",
+        "Link": "Links",
+        "Line": "Lines",
+        "Store": "Stores",
+        "StorageUnit": "StorageUnits",
+        "Bus": "Buses",
+    }
+    for component_type, count in result.items():
+        label = plural.get(component_type, component_type + "s")
+        print(f"  {label}: {count}")

@@ -68,11 +68,11 @@ component-of-carrier <path_to_pypsa_file> <carrier>
 Example output:
 
 ```
-Components with carrier 'gas':
-  Generator: gen_gas_AT0, gen_gas_AT1
-  Load: load_gas_AT0
-  Link: link_gas_AT0_AT1
-  Bus: bus_gas_AT0, bus_gas_AT1
+Carrier 'gas':
+  Generators: 2
+  Loads: 1
+  Links: 1
+  Buses: 2
 ```
 
 ---
@@ -157,7 +157,7 @@ cn_at0 = CarriersNetwork(carrier="gas", n=n, bus_pattern="AT0")
 
 ### `get_components_of_carrier`
 
-Find out which component types in a network use a given carrier name.
+Find out how many components of each type in a network use a given carrier name.
 
 ```python
 import pypsa
@@ -166,14 +166,14 @@ from energy_balance_evaluation import get_components_of_carrier
 n = pypsa.Network("my_network.nc")
 
 result = get_components_of_carrier(n, "gas")
-# e.g. {'Generator': ['gen_gas_AT0'], 'Link': ['link_gas'], 'Bus': ['bus_gas_AT0']}
+# e.g. {'Generator': 2, 'Link': 1, 'Bus': 2}
 
-for component_type, names in result.items():
-    print(f"{component_type}: {', '.join(names)}")
+for component_type, count in result.items():
+    print(f"{component_type}s: {count}")
 ```
 
-Returns a `dict` mapping component type names to lists of matching component
-names.  Component types with no match for the carrier are omitted.
+Returns a `dict` mapping component type names to the **count** of matching
+components.  Component types with no match for the carrier are omitted.
 
 ---
 
