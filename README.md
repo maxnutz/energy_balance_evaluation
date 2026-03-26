@@ -45,6 +45,9 @@ pypsa-topology network.nc gas --bus-pattern AT0
 
 > **Note** – The `resources/` folder is excluded from git tracking and will be
 > created automatically the first time the tool runs.
+- you can search for any carrier or bus_carrier in the network. 
+- to limit size of network-plots, the maximum number of buses is set to 12 after a reduction of 5 in first-line buses (directly connected to carrier-element).
+- Network-plots can therefore not be considered as complete for network components not directly connected to the carrier searched for.  
 
 ---
 
