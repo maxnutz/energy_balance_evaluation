@@ -16,10 +16,11 @@ from energy_balance_evaluation.pypsa_network_eval import (
     CarrierNetwork,
     eval_all_networks,
 )
-from energy_balance_evaluation.utils import CarriersNetwork
+from energy_balance_evaluation.utils import CarriersNetwork, InputError
 
 __all__ = [
     "CarrierNetwork",
     "CarriersNetwork",
+    "InputError",
     "eval_all_networks",
 ]
