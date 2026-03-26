@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pypsa
 
-from .utils import CarriersNetwork
+from .utils import CarriersNetwork, get_components_of_carrier
 
 
 class CarrierNetwork(CarriersNetwork):
@@ -192,3 +192,46 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def main_component_of_carrier() -> None:
+    """Entry point for the *component-of-carrier* CLI tool."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Show which component types in a pypsa network are attached to a "
+            "given carrier.  Useful when the same carrier name is shared across "
+            "multiple component types (e.g. Generator, Load, Link, Store, …)."
+        )
+    )
+    parser.add_argument(
+        "path_to_pypsa_file",
+        type=str,
+        help="Path to the pypsa network file (.nc or .h5).",
+    )
+    parser.add_argument(
+        "carrier",
+        type=str,
+        help="Carrier name to look up (exact match).",
+    )
+    args = parser.parse_args()
+
+    n = pypsa.Network(args.path_to_pypsa_file)
+    result = get_components_of_carrier(n, args.carrier)
+
+    if not result:
+        print(f"No components found for carrier '{args.carrier}'.")
+        return
+
+    print(f"Carrier '{args.carrier}':")
+    plural = {
+        "Generator": "Generators",
+        "Load": "Loads",
+        "Link": "Links",
+        "Line": "Lines",
+        "Store": "Stores",
+        "StorageUnit": "StorageUnits",
+        "Bus": "Buses",
+    }
+    for component_type, count in result.items():
+        label = plural.get(component_type, component_type + "s")
+        print(f"  {label}: {count}")

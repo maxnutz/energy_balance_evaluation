@@ -19,7 +19,9 @@ pip install .
 
 ## CLI usage
 
-After installation the `pypsa-topology` command is available:
+After installation two CLI commands are available:
+
+### `pypsa-topology` – visualise carrier topology
 
 ```bash
 pypsa-topology <path_to_pypsa_file> <carrier> [--bus-pattern PATTERN]
@@ -48,6 +50,33 @@ pypsa-topology network.nc gas --bus-pattern AT0
 - you can search for any carrier or bus_carrier in the network. 
 - to limit size of network-plots, the maximum number of buses is set to 12 after a reduction of 5 in first-line buses (directly connected to carrier-element).
 - Network-plots can therefore not be considered as complete for network components not directly connected to the carrier searched for.  
+
+---
+
+### `component-of-carrier` – find which components use a carrier
+
+When the same carrier name is used by different component types in a network
+(e.g. a `Generator` *and* a `Link` both carry `"gas"`), this command shows
+all component types that are attached to the given carrier:
+
+```bash
+component-of-carrier <path_to_pypsa_file> <carrier>
+```
+
+| Argument             | Description                                      |
+|----------------------|--------------------------------------------------|
+| `path_to_pypsa_file` | Path to the pypsa network file (`.nc` / `.h5`)   |
+| `carrier`            | Carrier name to look up (exact match)            |
+
+Example output:
+
+```
+Carrier 'gas':
+  Generators: 2
+  Loads: 1
+  Links: 1
+  Buses: 2
+```
 
 ---
 
@@ -126,6 +155,28 @@ mermaid_code = cn.get_mermaid_string()
 # Filter to a specific region
 cn_at0 = CarriersNetwork(carrier="gas", n=n, bus_pattern="AT0")
 ```
+
+---
+
+### `get_components_of_carrier`
+
+Find out how many components of each type in a network use a given carrier name.
+
+```python
+import pypsa
+from energy_balance_evaluation import get_components_of_carrier
+
+n = pypsa.Network("my_network.nc")
+
+result = get_components_of_carrier(n, "gas")
+# e.g. {'Generator': 2, 'Link': 1, 'Bus': 2}
+
+for component_type, count in result.items():
+    print(f"{component_type}s: {count}")
+```
+
+Returns a `dict` mapping component type names to the **count** of matching
+components.  Component types with no match for the carrier are omitted.
 
 ---
 

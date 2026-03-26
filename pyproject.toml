@@ -22,6 +22,7 @@ dependencies = [
 
 [project.scripts]
 pypsa-topology = "energy_balance_evaluation.pypsa_network_eval:main"
+component-of-carrier = "energy_balance_evaluation.pypsa_network_eval:main_component_of_carrier"
 
 [project.urls]
 Homepage = "https://github.com/maxnutz/energy_balance_evaluation"

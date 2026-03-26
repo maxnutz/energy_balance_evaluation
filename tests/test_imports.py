@@ -23,6 +23,10 @@ class TestPackageImports(unittest.TestCase):
 
         self.assertIsNotNone(eval_all_networks)
 
+    def test_import_get_components_of_carrier(self):
+        from energy_balance_evaluation import get_components_of_carrier
+
+        self.assertIsNotNone(get_components_of_carrier)
     def test_import_input_error(self):
         from energy_balance_evaluation import InputError
 
